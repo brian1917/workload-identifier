@@ -1,4 +1,4 @@
 .DS*
-*.xlsx
+misc/*
 umwl_output.csv
 bin/*
