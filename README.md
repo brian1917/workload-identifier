@@ -39,4 +39,5 @@ Usage of unmanaged-maker:
         API User or email address.
   -v    Verbose output produces a log file and adds an additional column in the output CSV for match reason.
   -w    Include IP addresses already assigned to workloads (typically used in testing only).
-  -x    Disable TLS checking```
+  -x    Disable TLS checking
+  ```
