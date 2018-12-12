@@ -156,7 +156,7 @@ func main() {
 	var r net.Resolver
 	for _, fm := range finalMatches {
 		names, _ := r.LookupAddr(ctx, fm.ipAddress)
-		fm.hostname = strings.Join(names, ",")
+		fm.hostname = strings.Join(names, ";")
 		if fm.hostname == "" {
 			fm.hostname = fmt.Sprintf("%s - %s", fm.ipAddress, fm.csname)
 		}
