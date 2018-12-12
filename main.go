@@ -61,8 +61,8 @@ func main() {
 	dupes := flag.Bool("d", false, "Allow same IP address to have several unmanaged workload recommendations. Default will use the order in the input CSV and match on the first one.")
 	term := flag.Bool("t", false, "PrettyPrint the CSV to the terminal.")
 	lookupTO := flag.Int("timeout", 5, "Timeout to lookup hostname in seconds.")
-	gat := flag.Bool("gat", false, "Output CSV will be in the format GAT expects for creating unmanaged workloads from a csv. The -w and -d flags are auto set to false with GAT. The verbose (-v) flag will not change output.")
-	ilo := flag.Bool("ilo", false, "Output will be two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv. The -w, -d, and -t flags are auto set to false with ILO. The verbose (-v) flag will not change output.")
+	gat := flag.Bool("gat", false, "Output CSV in format GAT expects for creating umwls. The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.")
+	ilo := flag.Bool("ilo", false, "Output two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv. The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.")
 
 	// Parse flags
 	flag.Parse()

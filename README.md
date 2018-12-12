@@ -23,9 +23,9 @@ Usage of unmanaged-maker:
   -fqdn string
         The fully qualified domain name of the PCE.
   -gat
-        Output CSV will be in the format GAT expects for creating unmanaged workloads from a csv. The -w and -d flags are auto set to false with GAT. The verbose (-v) flag will not change output.
+        Output CSV in format GAT expects for creating umwls. The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.
   -ilo
-        Output will be two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv. The -w, -d, and -t flags are auto set to false with ILO. The verbose (-v) flag will not change output.
+        Output two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv. The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.
   -input string
         CSV input file to be used to identify unmanaged workloads. (default "umwl_finder_default.csv")
   -org int
