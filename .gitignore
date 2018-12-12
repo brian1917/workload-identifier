@@ -1,4 +1,6 @@
 .DS*
 misc/*
-umwl_output.csv
+*.csv
+*.xlsx
+!umwl_output.csv
 bin/*

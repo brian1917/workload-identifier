@@ -22,6 +22,10 @@ Usage of unmanaged-maker:
   -d    Allow same IP address to have several unmanaged workload recommendations. Default will use the order in the input CSV and match on the first one.
   -fqdn string
         The fully qualified domain name of the PCE.
+  -gat
+        Output CSV will be in the format GAT expects for creating unmanaged workloads from a csv. The -w and -d flags are auto set to false with GAT. The verbose (-v) flag will not change output.
+  -ilo
+        Output will be two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv. The -w, -d, and -t flags are auto set to false with ILO. The verbose (-v) flag will not change output.
   -input string
         CSV input file to be used to identify unmanaged workloads. (default "umwl_finder_default.csv")
   -org int
@@ -43,4 +47,4 @@ Usage of unmanaged-maker:
   ```
 
   ## Hostname Resolution
-  When an unmanaged workload is identified, the tool will attempt to resolve its hostname. The default allows for 5 second to resolve the hostname. It can be changed via the `-timeout` flag. If the hostname cannot be found, the output will use the name from the input file and the IP address. For example, `ldap - 10.0.80.3'
+  When an unmanaged workload is identified, the tool will attempt to resolve its hostname. The default allows for 5 second to resolve the hostname. It can be changed via the `-timeout` flag. If the hostname cannot be found, the output will use the name from the input file and the IP address. For example, `ldap - 10.0.80.3`

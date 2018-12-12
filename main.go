@@ -61,9 +61,26 @@ func main() {
 	dupes := flag.Bool("d", false, "Allow same IP address to have several unmanaged workload recommendations. Default will use the order in the input CSV and match on the first one.")
 	term := flag.Bool("t", false, "PrettyPrint the CSV to the terminal.")
 	lookupTO := flag.Int("timeout", 5, "Timeout to lookup hostname in seconds.")
+	gat := flag.Bool("gat", false, "Output CSV will be in the format GAT expects for creating unmanaged workloads from a csv. The -w and -d flags are auto set to false with GAT. The verbose (-v) flag will not change output.")
+	ilo := flag.Bool("ilo", false, "Output will be two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv. The -w, -d, and -t flags are auto set to false with ILO. The verbose (-v) flag will not change output.")
 
 	// Parse flags
 	flag.Parse()
+
+	// If the GAT flag is set, we want to over-ride a few user-supplied flags
+	if *gat {
+		*incWLs = false
+		*dupes = false
+		*ilo = false
+		*term = false
+	}
+
+	// If the ILO flag is set, we want to over-ride a few user-supplied flags
+	if *ilo {
+		*incWLs = false
+		*dupes = false
+		*term = false
+	}
 
 	// Run some quick checks
 	if len(*fqdn) == 0 || len(*user) == 0 || len(*pwd) == 0 {
@@ -167,7 +184,11 @@ func main() {
 	for _, fm := range finalMatches {
 		if fm.wlhostname == "IP ONLY - NO WORKLOAD" {
 			names, _ := r.LookupAddr(ctx, fm.ipAddress)
-			fm.hostname = strings.Join(names, ";")
+			if len(names) > 2 {
+				fm.hostname = fmt.Sprintf("%s; %s; and %d more", names[0], names[1], len(names)-2)
+			} else {
+				fm.hostname = strings.Join(names, ";")
+			}
 			if fm.hostname == "" {
 				fm.hostname = fmt.Sprintf("%s - %s", fm.ipAddress, fm.csname)
 			}
@@ -179,47 +200,99 @@ func main() {
 
 	ipAddr := make(map[string]int)
 	// Write out the CSV file
+	fileName := *outputFile
+	if *ilo {
+		fileName = fmt.Sprintf("%s%s", "bulk_upload_csv-", *outputFile)
+	}
 	if len(matches) > 0 {
-		file, err := os.Create(*outputFile)
+		file, err := os.Create(fileName)
 		if err != nil {
 			log.Fatalf("ERROR - Creating file - %s\n", err)
 		}
 		defer file.Close()
 
-		if *verbose {
-			fmt.Fprintf(file, "ip_address,hostname,app,role,env,loc,existing_workload,match_reason\r\n")
-			for _, fmh := range finalMatchesHost {
-				if _, ok := ipAddr[fmh.ipAddress]; !ok || *dupes {
-					ipAddr[fmh.ipAddress] = 1
-					wlCheck := "Yes"
-					if fmh.wlhostname == "IP ONLY - NO WORKLOAD" {
-						wlCheck = "No"
+		// Write the headers
+		switch {
+		case *gat:
+			{
+				// GAT does not use headers - do nothing
+			}
+		case *ilo:
+			{
+				fmt.Fprintf(file, "hostname,ips,os_type\r\n")
+			}
+		case *verbose:
+			{
+				fmt.Fprintf(file, "ip_address,hostname,app,role,env,loc,existing_workload,match_reason\r\n")
+			}
+		default:
+			{
+				fmt.Fprintf(file, "ip_address,hostname,app,role,env,loc\r\n")
+			}
+		}
+
+		// Write the data
+		for _, fmh := range finalMatchesHost {
+			if _, ok := ipAddr[fmh.ipAddress]; !ok || *dupes {
+				ipAddr[fmh.ipAddress] = 1
+				wlCheck := "Yes"
+				if fmh.wlhostname == "IP ONLY - NO WORKLOAD" {
+					wlCheck = "No"
+				}
+				switch {
+				case *gat:
+					{
+						fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,eth0:%s,%s,%s\r\n", fmh.hostname, "", fmh.role, fmh.app, fmh.env, fmh.loc, fmh.hostname, "", "", "", fmh.ipAddress, fmh.ipAddress, "", "")
 					}
-					fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s,%s,%s\r\n", fmh.ipAddress, fmh.hostname, fmh.app, fmh.role, fmh.env, fmh.loc, wlCheck, fmh.reason)
+				case *ilo:
+					{
+						fmt.Fprintf(file, "%s,%s,%s\r\n", fmh.hostname, fmh.ipAddress, "")
+					}
+				case *verbose:
+					{
+						fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s,%s,%s\r\n", fmh.ipAddress, fmh.hostname, fmh.app, fmh.role, fmh.env, fmh.loc, wlCheck, fmh.reason)
+					}
+				default:
+					{
+						fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s\r\n", fmh.ipAddress, fmh.hostname, fmh.app, fmh.role, fmh.env, fmh.loc)
+					}
 				}
 
 			}
-		} else {
-			fmt.Fprintf(file, "ip_address,hostname,app,role,env,loc\r\n")
+
+		}
+
+		// If ILO, we need to create a second CSV
+		if *ilo {
+			ipAddr := make(map[string]int)
+			file, err := os.Create("label_sync_csv-" + *outputFile)
+			if err != nil {
+				log.Fatalf("ERROR - Creating file - %s\n", err)
+			}
+			defer file.Close()
+			fmt.Fprintf(file, "role,app,env,loc,ips\r\n")
 			for _, fmh := range finalMatchesHost {
-				if _, ok := ipAddr[fmh.ipAddress]; !ok || *dupes {
+				if _, ok := ipAddr[fmh.ipAddress]; !ok {
 					ipAddr[fmh.ipAddress] = 1
-					fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s\r\n", fmh.ipAddress, fmh.hostname, fmh.app, fmh.role, fmh.env, fmh.loc)
+					fmt.Fprintf(file, "%s,%s,%s,%s,%s\r\n", fmh.role, fmh.app, fmh.env, fmh.loc, fmh.ipAddress)
 				}
 			}
-		}
-	}
 
-	// Print to terminal if flagged
-	if *term {
-		table, err := tablewriter.NewCSV(os.Stdout, *outputFile, true)
-		if err != nil {
-			log.Printf("Error - printing csv to terminal - %s", err)
 		}
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
-		table.SetRowLine(true)
-		table.SetRowSeparator("-")
-		table.Render()
+
+		// Print to terminal if flagged
+		if *term {
+			table, err := tablewriter.NewCSV(os.Stdout, *outputFile, !*gat)
+			if err != nil {
+				log.Printf("Error - printing csv to terminal - %s", err)
+			}
+			table.SetAlignment(tablewriter.ALIGN_LEFT)
+			table.SetRowLine(true)
+			table.SetRowSeparator("-")
+			table.Render()
+		}
+	} else {
+		fmt.Println("NO MATCHES")
 	}
 
 }
