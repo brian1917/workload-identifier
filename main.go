@@ -15,14 +15,15 @@ import (
 )
 
 type match struct {
-	csname    string
-	ipAddress string
-	hostname  string
-	app       string
-	env       string
-	loc       string
-	role      string
-	reason    string
+	csname     string
+	ipAddress  string
+	hostname   string
+	app        string
+	env        string
+	loc        string
+	role       string
+	reason     string
+	wlhostname string
 }
 
 // Contains checks if an integer is in a slice
@@ -126,27 +127,36 @@ func main() {
 	}
 
 	// Remove entries where the IP Address is assigned to a workload
-	allIPs := make(map[string]int)
+	allIPs := make(map[string]string)
 	wls, _, err := illumioapi.GetAllWorkloads(pce)
 	if err != nil {
 		log.Fatalf("ERROR - getting all workloads - %s", err)
 	}
 	for _, wl := range wls {
+
 		for _, iface := range wl.Interfaces {
-			allIPs[iface.Address] = 1
+			name := wl.Name
+			if net.ParseIP(wl.Hostname) == nil && len(wl.Hostname) > 0 {
+				name = wl.Hostname
+			}
+			allIPs[iface.Address] = name
 		}
 	}
 	sNonWlMatches := []match{}
+	sMatchesWLName := []match{}
 	for _, sm := range sMatches {
+		sm.wlhostname = allIPs[sm.ipAddress]
 		if _, ok := allIPs[sm.ipAddress]; !ok {
+			sm.wlhostname = "IP ONLY - NO WORKLOAD"
 			sNonWlMatches = append(sNonWlMatches, sm)
 		}
+		sMatchesWLName = append(sMatchesWLName, sm)
 	}
 
 	// Assign the final matches
 	finalMatches := sNonWlMatches
 	if *incWLs {
-		finalMatches = sMatches
+		finalMatches = sMatchesWLName
 	}
 
 	// Get the hostnames for the final matches
@@ -155,10 +165,14 @@ func main() {
 	defer cancel() // important to avoid a resource leak
 	var r net.Resolver
 	for _, fm := range finalMatches {
-		names, _ := r.LookupAddr(ctx, fm.ipAddress)
-		fm.hostname = strings.Join(names, ";")
-		if fm.hostname == "" {
-			fm.hostname = fmt.Sprintf("%s - %s", fm.ipAddress, fm.csname)
+		if fm.wlhostname == "IP ONLY - NO WORKLOAD" {
+			names, _ := r.LookupAddr(ctx, fm.ipAddress)
+			fm.hostname = strings.Join(names, ";")
+			if fm.hostname == "" {
+				fm.hostname = fmt.Sprintf("%s - %s", fm.ipAddress, fm.csname)
+			}
+		} else {
+			fm.hostname = fm.wlhostname
 		}
 		finalMatchesHost = append(finalMatchesHost, fm)
 	}
@@ -173,11 +187,15 @@ func main() {
 		defer file.Close()
 
 		if *verbose {
-			fmt.Fprintf(file, "ip_address,hostname,app,role,env,loc,match_reason\r\n")
+			fmt.Fprintf(file, "ip_address,hostname,app,role,env,loc,existing_workload,match_reason\r\n")
 			for _, fmh := range finalMatchesHost {
 				if _, ok := ipAddr[fmh.ipAddress]; !ok || *dupes {
 					ipAddr[fmh.ipAddress] = 1
-					fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s,%s\r\n", fmh.ipAddress, fmh.hostname, fmh.app, fmh.role, fmh.env, fmh.loc, fmh.reason)
+					wlCheck := "Yes"
+					if fmh.wlhostname == "IP ONLY - NO WORKLOAD" {
+						wlCheck = "No"
+					}
+					fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s,%s,%s\r\n", fmh.ipAddress, fmh.hostname, fmh.app, fmh.role, fmh.env, fmh.loc, wlCheck, fmh.reason)
 				}
 
 			}
