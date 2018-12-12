@@ -55,14 +55,18 @@ func main() {
 	pwd := flag.String("pwd", "", "API key if using API user or password if using email address.")
 	csvFile := flag.String("input", "umwl_finder_default.csv", "CSV input file to be used to identify unmanaged workloads.")
 	outputFile := flag.String("output", "umwl_output.csv", "File to write the unmanaged workloads to.")
-	incWLs := flag.Bool("w", false, "Include IP addresses already assigned to workloads (managed or unmanaged). Can be used as a verification.")
+	incWLs := flag.Bool("w", false, `Include IP addresses already assigned to workloads (managed or unmanaged).
+Can be used as a verification of existing labels.`)
 	disableTLS := flag.Bool("x", false, "Disable TLS checking for communication to the PCE from the tool.")
 	verbose := flag.Bool("v", false, "Verbose output provides an additional column in the output CSV to explain the match reason.")
-	dupes := flag.Bool("d", false, "Allow same IP address to have several unmanaged workload recommendations. Default will use the order in the input CSV and match on the first one.")
+	dupes := flag.Bool("d", false, `Allow same IP address to have several unmanaged workload recommendations.
+Default will use the order in the input CSV and match on the first one.`)
 	term := flag.Bool("t", false, "PrettyPrint the CSV to the terminal.")
 	lookupTO := flag.Int("timeout", 5, "Timeout to lookup hostname in seconds.")
-	gat := flag.Bool("gat", false, "Output CSV in format GAT expects for creating umwls. The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.")
-	ilo := flag.Bool("ilo", false, "Output two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv. The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.")
+	gat := flag.Bool("gat", false, `Output CSV in format GAT expects for creating umwls. 
+The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.`)
+	ilo := flag.Bool("ilo", false, `Output two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv.
+The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.`)
 
 	// Parse flags
 	flag.Parse()

@@ -19,13 +19,16 @@ The tool requires an input CSV with information on how to match unmanaged worklo
 ## Usage
 ```
 Usage of unmanaged-maker:
-  -d    Allow same IP address to have several unmanaged workload recommendations. Default will use the order in the input CSV and match on the first one.
+  -d    Allow same IP address to have several unmanaged workload recommendations.
+        Default will use the order in the input CSV and match on the first one.
   -fqdn string
         The fully qualified domain name of the PCE.
   -gat
-        Output CSV in format GAT expects for creating umwls. The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.
+        Output CSV in format GAT expects for creating umwls.
+        The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.
   -ilo
-        Output two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv. The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.
+        Output two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv.
+        The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.
   -input string
         CSV input file to be used to identify unmanaged workloads. (default "umwl_finder_default.csv")
   -org int
@@ -42,7 +45,8 @@ Usage of unmanaged-maker:
   -user string
         API user or email address.
   -v    Verbose output provides an additional column in the output CSV to explain the match reason.
-  -w    Include IP addresses already assigned to workloads (managed or unmanaged). Can be used as a verification.
+  -w    Include IP addresses already assigned to workloads (managed or unmanaged).
+        Can be used as a verification of existing labels.
   -x    Disable TLS checking for communication to the PCE from the tool.
   ```
 
