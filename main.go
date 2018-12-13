@@ -65,7 +65,8 @@ func main() {
 	ilo := flag.Bool("ilo", false, "Output two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv.\r\nThe -w and -d flags are auto set to false. The verbose (-v) flag will not change output.")
 	privOnly := flag.Bool("p", false, "Private IP addresses only to only suggest workloads in the RFC 1918 address space.")
 
-	var Usage = func() {
+	// Go's alphabetical ordering is annoying so writing out our own help menu (will eventually use a cli package)
+	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
 		fmt.Println("-fqdn  string")
 		fmt.Println("       The fully qualified domain name of the PCE")
@@ -93,8 +94,6 @@ func main() {
 
 	}
 
-	flag.Usage = Usage
-
 	// Parse flags
 	flag.Parse()
 
@@ -115,7 +114,7 @@ func main() {
 
 	// Run some quick checks
 	if len(*fqdn) == 0 || len(*user) == 0 || len(*pwd) == 0 {
-		flag.PrintDefaults()
+		flag.Usage()
 		log.Fatalf("ERROR - Required flags not included")
 	}
 
