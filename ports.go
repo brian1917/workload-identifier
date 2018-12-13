@@ -14,7 +14,7 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 
 	var ft []illumioapi.TrafficAnalysis
 
-	// Create the filter traffic slice
+	// Create the filter traffic slice by removing traffic that is talking to each other
 	for _, entry := range traffic {
 		if entry.Src.IP != entry.Dst.IP {
 			ft = append(ft, entry)
