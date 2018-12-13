@@ -55,18 +55,15 @@ func main() {
 	pwd := flag.String("pwd", "", "API key if using API user or password if using email address.")
 	csvFile := flag.String("input", "umwl_finder_default.csv", "CSV input file to be used to identify unmanaged workloads.")
 	outputFile := flag.String("output", "umwl_output.csv", "File to write the unmanaged workloads to.")
-	incWLs := flag.Bool("w", false, `Include IP addresses already assigned to workloads (managed or unmanaged).
-Can be used as a verification of existing labels.`)
+	incWLs := flag.Bool("w", false, "Include IP addresses already assigned to workloads (managed or unmanaged).\r\nCan be used as a verification of existing labels.")
 	disableTLS := flag.Bool("x", false, "Disable TLS checking for communication to the PCE from the tool.")
 	verbose := flag.Bool("v", false, "Verbose output provides an additional column in the output CSV to explain the match reason.")
-	dupes := flag.Bool("d", false, `Allow same IP address to have several unmanaged workload recommendations.
-Default will use the order in the input CSV and match on the first one.`)
+	dupes := flag.Bool("d", false, "Allow same IP address to have several unmanaged workload recommendations.\r\nDefault will use the order in the input CSV and match on the first one.")
 	term := flag.Bool("t", false, "PrettyPrint the CSV to the terminal.")
 	lookupTO := flag.Int("timeout", 5, "Timeout to lookup hostname in seconds.")
-	gat := flag.Bool("gat", false, `Output CSV in format GAT expects for creating umwls. 
-The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.`)
-	ilo := flag.Bool("ilo", false, `Output two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv.
-The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.`)
+	gat := flag.Bool("gat", false, "Output CSV in format GAT expects for creating umwls.\r\nThe -w and -d flags are auto set to false. The verbose (-v) flag will not change output.")
+	ilo := flag.Bool("ilo", false, "Output two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv.\r\nThe -w and -d flags are auto set to false. The verbose (-v) flag will not change output.")
+	privOnly := flag.Bool("p", false, "Private IP addresses only to only suggest workloads in the RFC 1918 address space.")
 
 	// Parse flags
 	flag.Parse()
@@ -175,15 +172,40 @@ The -w and -d flags are auto set to false. The verbose (-v) flag will not change
 	}
 
 	// Assign the final matches
-	finalMatches := sNonWlMatches
+	fmBeforePriv := sNonWlMatches
 	if *incWLs {
-		finalMatches = sMatchesWLName
+		fmBeforePriv = sMatchesWLName
+	}
+
+	// Remove nonRFC 1918 if flagged
+	var finalMatches []match
+	if *privOnly {
+
+		for _, m := range fmBeforePriv {
+			rfc1918 := []string{"192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8"}
+			privCheck := false
+			// Iterate through the three RFC 1918 ranges
+			for _, cidr := range rfc1918 {
+				// Get the ipv4Net
+				_, ipv4Net, _ := net.ParseCIDR(cidr)
+				// Check if it is in the range
+				privCheck = ipv4Net.Contains(net.ParseIP(m.ipAddress))
+				// If we get a true, append to the slice and stop checking the other ranges
+				if privCheck {
+					finalMatches = append(finalMatches, m)
+					break
+				}
+			}
+		}
+	} else {
+		// If the private only flag wasn't included, we use the previous slice
+		finalMatches = fmBeforePriv
 	}
 
 	// Get the hostnames for the final matches
 	var finalMatchesHost []match
 	ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(*lookupTO)*time.Second)
-	defer cancel() // important to avoid a resource leak
+	defer cancel()
 	var r net.Resolver
 	for _, fm := range finalMatches {
 		if fm.wlhostname == "IP ONLY - NO WORKLOAD" {
@@ -266,7 +288,7 @@ The -w and -d flags are auto set to false. The verbose (-v) flag will not change
 
 		}
 
-		// If ILO, we need to create a second CSV
+		// If ILO, we need to create a second CSV for the labels
 		if *ilo {
 			ipAddr := make(map[string]int)
 			file, err := os.Create("label_sync_csv-" + *outputFile)

@@ -35,6 +35,7 @@ Usage of unmanaged-maker:
         The org value for the PCE. (default 1)
   -output string
         File to write the unmanaged workloads to. (default "umwl_output.csv")
+  -p    Private IP addresses only to only suggest workloads in the RFC 1918 address space.
   -port int
         The port for the PCE. (default 8443)
   -pwd string
