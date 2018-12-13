@@ -5,16 +5,16 @@ CLI tool that suggests unmanaged workloads for the Illumio PCE from observed tra
 
 ## Input CSV File
 The tool requires an input CSV with information on how to match unmanaged workloads to observed traffic. The repository includes a default CSV that is suggested to be used as a starting point. Add to it as needed. The CSV columns are explained below:
-* *name* - name of the service being identified (e.g., domain controller, LDAP, etc.)
-* *provider* - 1 if the workload is a provider or 0 if it is a consumer. For example, a Domain Controllers will be on the provider of observed traffic. McAfee workloads will be the consumer on traffic over port 8081.
-* *required_ports* - list of ports that _must_ be observed to be considered a match. Separate ports by a space. *_Ranges are not allowed_*.
-* *optional_ports* - list of ports that some must be observed to be considered a match. Separate ports by a space. Ranges are allowed and should be written as 49152-65535 with no spaces. *_A match in a range only counts once_*. For example, if a range is given as 100-200 and traffic is observed on 101 and 102, it counted as 1 optional match. This avoids situations like a server matching as a domain controller because several high end ports were identified.
-* *processes* - list of optional provider processes (e.g., macmnsvc.exe) used to identify the workload.
-* *num_processes_required* - number of optional proccesses to be identified to be considered a match.
-* *role* - Illumio role label to be assigned.
-* *app* - Illumio app label to be assigned.
-* *env* - Illumio environment label be assigned.
-* *loc* - Illumio location label to be assigned.
+* **name** - name of the service being identified (e.g., domain controller, LDAP, etc.)
+* **provider** - 1 if the workload is a provider or 0 if it is a consumer. For example, a Domain Controllers will be on the provider of observed traffic. McAfee workloads will be the consumer on traffic over port 8081.
+* **required_ports** - list of ports that _must_ be observed to be considered a match. Separate ports by a space. *_Ranges are not allowed_*.
+* **optional_ports** - list of ports that some must be observed to be considered a match. Separate ports by a space. Ranges are allowed and should be written as 49152-65535 with no spaces. *_A match in a range only counts once_*. For example, if a range is given as 100-200 and traffic is observed on 101 and 102, it counted as 1 optional match. This avoids situations like a server matching as a domain controller because several high end ports were identified.
+* **processes** - list of optional provider processes (e.g., macmnsvc.exe) used to identify the workload.
+* **num_processes_required** - number of optional proccesses to be identified to be considered a match.
+* **role** - Illumio role label to be assigned.
+* **app** - Illumio app label to be assigned.
+* **env** - Illumio environment label be assigned.
+* **loc** - Illumio location label to be assigned.
 
 ## Usage
 ```
