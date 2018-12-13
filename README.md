@@ -19,36 +19,29 @@ The tool requires an input CSV with information on how to match unmanaged worklo
 ## Usage
 ```
 Usage of unmanaged-maker:
-  -d    Allow same IP address to have several unmanaged workload recommendations.
-        Default will use the order in the input CSV and match on the first one.
-  -fqdn string
-        The fully qualified domain name of the PCE.
-  -gat
-        Output CSV in format GAT expects for creating umwls.
-        The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.
-  -ilo
-        Output two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv.
-        The -w and -d flags are auto set to false. The verbose (-v) flag will not change output.
-  -input string
-        CSV input file to be used to identify unmanaged workloads. (default "umwl_finder_default.csv")
-  -org int
-        The org value for the PCE. (default 1)
-  -output string
-        File to write the unmanaged workloads to. (default "umwl_output.csv")
-  -p    Private IP addresses only to only suggest workloads in the RFC 1918 address space.
-  -port int
-        The port for the PCE. (default 8443)
-  -pwd string
-        API key if using API user or password if using email address.
-  -t    PrettyPrint the CSV to the terminal.
-  -timeout int
-        Timeout to lookup hostname in seconds. (default 5)
-  -user string
-        API user or email address.
-  -v    Verbose output provides an additional column in the output CSV to explain the match reason.
-  -w    Include IP addresses already assigned to workloads (managed or unmanaged).
-        Can be used as a verification of existing labels.
-  -x    Disable TLS checking for communication to the PCE from the tool.
+-fqdn  string
+       The fully qualified domain name of the PCE
+-port  int
+       The port of the PCE. (default 8443)
+-org   int
+       The org value for the PCE. (default 1)
+-user  string
+       API user or email address.
+-pwd   string
+       API key if using API user or password if using email address.
+-in    string
+       CSV input file to be used to identify unmanaged workloads. (default "umwl_finder_default.cs")
+-out   string
+       File to write the unmanaged workloads to. (default "umwl_output.csv")
+-time  int
+       Timeout to lookup hostname in seconds. (default 5)
+-x     Disable TLS checking.
+-t     PrettyPrint the CSV to the terminal.
+-v     Verbose output provides additional columns in output to explain the match reason.
+-w     Include IP addresses already assigned to workloads.
+-p     Private IP addresses to only suggest workloads in the RFC 1918 address space.
+-g     Output CSV for GAT import. -w, -d, and -v are ignored
+-i     Output two CSVs (workloads and labels) to import via ILO-CLI. -w, -d, and -v are ignored.
   ```
 
   ## Hostname Resolution
