@@ -2,5 +2,5 @@
 misc/*
 *.csv
 *.xlsx
-!umwl_finder_default
+!umwl_finder_default.csv
 bin/*
