@@ -21,6 +21,27 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 		}
 	}
 
+	// Get the traffic flow count for each machine on a port
+	ipPortCount := make(map[string]int)
+
+	for _, entry := range traffic {
+		ip := entry.Dst.IP
+		if !provider {
+			ip = entry.Src.IP
+		}
+		ipPortCount[ip+"-"+strconv.Itoa(entry.ExpSrv.Port)] = ipPortCount[ip+"-"+strconv.Itoa(entry.ExpSrv.Port)] + entry.NumConnections
+
+	}
+
+	/** DEBUG
+	for ipadd, count := range ipPortCount {
+		if ipadd[:10] == "172.16.1.4" && len(ipadd) == 10 {
+			fmt.Printf("%s - %d\n", ipadd, count)
+		}
+
+	}
+	END DEBUG **/
+
 	// For each traffic flow not going to a workload, see if it already exists in the ipAddrPorts map. If no, add it.
 	ipPorts := make(map[string][]int)
 	for _, flow := range ft {
@@ -40,16 +61,20 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 
 	// Iterate through each machine seen in explorer
 	for ipAddr, ports := range ipPorts {
+		// Reset the flow counter
+		flowCounter := 0
 		// Cycle through core services to look for matches
 		for _, cs := range coreServices {
-			// Only run when the the provider flag is the same for core service and passed into function
+			// Reset the portMatches slice
 			portMatches := []string{}
+			// Only run when the the provider flag is the same for core service and passed into function
 			if provider == cs.provider {
 				// Required Ports
 				reqPortMatches := 0
 				for _, csReqPort := range cs.requiredPorts {
 					if containsInt(ports, csReqPort) {
 						reqPortMatches++
+						flowCounter = flowCounter + ipPortCount[ipAddr+"-"+strconv.Itoa(csReqPort)]
 						portMatches = append(portMatches, strconv.Itoa(csReqPort))
 					}
 				}
@@ -58,6 +83,7 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 				for _, csOptPort := range cs.optionalPorts {
 					if containsInt(ports, csOptPort) {
 						optPortMatches++
+						flowCounter = flowCounter + ipPortCount[ipAddr+"-"+strconv.Itoa(csOptPort)]
 						portMatches = append(portMatches, strconv.Itoa(csOptPort))
 					}
 				}
@@ -73,8 +99,8 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 					}
 				}
 				// Check if it should count
-				if (len(cs.requiredPorts) == reqPortMatches && len(cs.requiredPorts) > 0 && cs.numOptionalPorts <= (optPortMatches+optPortRangeMatches)) ||
-					(len(cs.requiredPorts) == 0 && cs.numOptionalPorts <= (optPortMatches+optPortRangeMatches)) {
+				if (len(cs.requiredPorts) == reqPortMatches && len(cs.requiredPorts) > 0 && cs.numOptionalPorts <= (optPortMatches+optPortRangeMatches) && cs.numFlows <= flowCounter) ||
+					(len(cs.requiredPorts) == 0 && cs.numOptionalPorts <= (optPortMatches+optPortRangeMatches) && cs.numFlows <= flowCounter) {
 
 					t := "provider"
 					if !provider {
@@ -84,7 +110,7 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 					if len(portMatches) > 1 {
 						s = "ports"
 					}
-					reason := fmt.Sprintf("%s is the %s on traffic over %s %s", ipAddr, t, s, strings.Join(portMatches, " "))
+					reason := fmt.Sprintf("%s is the %s on traffic over %s %s. Required and optional non-ranges flow count is %d. ", ipAddr, t, s, strings.Join(portMatches, " "), flowCounter)
 
 					matches = append(matches, match{csname: cs.name, ipAddress: ipAddr, app: cs.app, env: cs.env, loc: cs.loc, role: cs.role, reason: reason})
 				}
