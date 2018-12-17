@@ -53,6 +53,7 @@ func main() {
 	org := flag.Int("org", 1, "The org value for the PCE.")
 	user := flag.String("user", "", "API user or email address.")
 	pwd := flag.String("pwd", "", "API key if using API user or password if using email address.")
+	app := flag.String("app", "", "App name. Explorer results focus on that app as provider or consumer. Default is all apps")
 	csvFile := flag.String("in", "umwl_finder_default.csv", "CSV input file to be used to identify unmanaged workloads.")
 	outputFile := flag.String("out", "umwl_output.csv", "File to write the unmanaged workloads to.")
 	lookupTO := flag.Int("timeout", 5, "Timeout to lookup hostname in seconds.")
@@ -78,6 +79,8 @@ func main() {
 		fmt.Println("       API user or email address. Required.")
 		fmt.Println("-pwd   string")
 		fmt.Println("       API key if using API user or password if using email address. Required.")
+		fmt.Println("-app   string")
+		fmt.Println("       App name. Explorer results focus on that app as provider or consumer. Default is all apps.")
 		fmt.Println("-in    string")
 		fmt.Println("       CSV input file to be used to identify unmanaged workloads. (default \"umwl_finder_default.cs\")")
 		fmt.Println("-out   string")
@@ -144,15 +147,40 @@ func main() {
 	// Parse the CSV
 	coreServices := csvParser(*csvFile)
 
-	// Create the query struct - don't need most fields
-	traffic, err := illumioapi.GetTrafficAnalysis(pce, illumioapi.TrafficQuery{
+	// Create the default query struct
+	tq := illumioapi.TrafficQuery{
 		StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
 		EndTime:        time.Date(2020, 12, 30, 0, 0, 0, 0, time.UTC),
 		PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
-		MaxFLows:       100000})
+		MaxFLows:       100000}
 
+	// If an app is provided, we want to run with that app as the consumer.
+	if *app != "" {
+		label, _, err := illumioapi.GetLabel(pce, "app", *app)
+		if err != nil {
+			log.Fatalf("ERROR - Getting label HREF - %s", err)
+		}
+		if label.Href == "" {
+			log.Fatalf("ERROR- %s does not exist as an app label.", *app)
+		}
+		tq.SourcesInclude = []string{label.Href}
+	}
+
+	traffic, err := illumioapi.GetTrafficAnalysis(pce, tq)
 	if err != nil {
 		log.Fatalf("ERROR - Making explorer API call - %s", err)
+	}
+
+	// Switch to the destination include, clear the sources include, run query again, append to previous result
+	if *app != "" {
+		tq.DestinationsInclude = tq.SourcesInclude
+		tq.SourcesInclude = []string{}
+
+		traffic2, err := illumioapi.GetTrafficAnalysis(pce, tq)
+		if err != nil {
+			log.Fatalf("ERROR - Making second explorer API call - %s", err)
+		}
+		traffic = append(traffic, traffic2...)
 	}
 
 	// Get Providers and Consumers and combine into one slice
