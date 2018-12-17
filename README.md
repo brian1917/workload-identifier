@@ -1,10 +1,10 @@
 # Unmanaged Maker
 
 ## Description
-CLI tool that suggests unmanaged workloads for the Illumio PCE from observed traffic in Explorer.
+CLI tool that suggests unmanaged workloads for the Illumio PCE from observed traffic in Explorer. The output of the tool should be reviewed and then used to import into the PCE to create and label the workloads. The default output is the easiest to consume. When you are ready to import, you can run the tool agai with either the `-g` flag to create a CSV to be used with GAT import the workloads and labels or the `-i` flag to create two CSVs (one for workloads and one for labels) to be used with the ilo-cli tool.
 
 ## Input CSV File
-The tool requires an input CSV with information on how to match unmanaged workloads to observed traffic. The repository includes a default CSV that is suggested to be used as a starting point. Add to it as needed. The CSV columns are explained below:
+The tool requires an input CSV with information on how to match IP addresses from observed traffic to unmanaged workloads. The repository includes a default CSV that is suggested to be used as a starting point. Add to it as needed. The CSV columns are explained below:
 * **name** - name of the service being identified (e.g., domain controller, LDAP, etc.)
 * **provider** - 1 if the workload is a provider or 0 if it is a consumer. For example, a Domain Controllers will be on the provider of observed traffic. McAfee workloads will be the consumer on traffic over port 8081.
 * **required_ports** - list of ports that _must_ be observed to be considered a match. Separate ports by a space. *_Ranges are not allowed_*.

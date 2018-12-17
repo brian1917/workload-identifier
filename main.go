@@ -56,28 +56,28 @@ func main() {
 	csvFile := flag.String("in", "umwl_finder_default.csv", "CSV input file to be used to identify unmanaged workloads.")
 	outputFile := flag.String("out", "umwl_output.csv", "File to write the unmanaged workloads to.")
 	lookupTO := flag.Int("timeout", 5, "Timeout to lookup hostname in seconds.")
-	incWLs := flag.Bool("w", false, "Include IP addresses already assigned to workloads (managed or unmanaged).\r\nCan be used as a verification of existing labels.")
-	disableTLS := flag.Bool("x", false, "Disable TLS checking for communication to the PCE from the tool.")
-	verbose := flag.Bool("v", false, "Verbose output provides an additional column in the output CSV to explain the match reason.")
-	dupes := flag.Bool("d", false, "Allow same IP address to have several unmanaged workload recommendations.\r\nDefault will use the order in the input CSV and match on the first one.")
+	disableTLS := flag.Bool("x", false, "Disable TLS checking.")
 	term := flag.Bool("t", false, "PrettyPrint the CSV to the terminal.")
-	gat := flag.Bool("g", false, "Output CSV in format GAT expects for creating umwls.\r\nThe -w and -d flags are auto set to false. The verbose (-v) flag will not change output.")
-	ilo := flag.Bool("ilo", false, "Output two CSVs to run using two ILO-CLI commands: bulk_upload_csv and then label_sync_csv.\r\nThe -w and -d flags are auto set to false. The verbose (-v) flag will not change output.")
-	privOnly := flag.Bool("p", false, "Private IP addresses only to only suggest workloads in the RFC 1918 address space.")
+	verbose := flag.Bool("v", false, "Verbose output provides additional columns in output to explain the match reason.")
+	incWLs := flag.Bool("w", false, "Include IP addresses already assigned to workloads to suggest or verify labels.")
+	privOnly := flag.Bool("p", false, "Limit suggested workloads to the RFC 1918 address space.")
+	gat := flag.Bool("g", false, "Output CSV for GAT import. -w and -v are ignored with -g.")
+	ilo := flag.Bool("ilo", false, "Output two CSVs (workloads and labels) to import via ILO-CLI. -w and -v are ignored with -i.")
+	dupes := flag.Bool("d", false, "Allow IP address to have more than 1 recommendation. Default uses CSV order.")
 
 	// Go's alphabetical ordering is annoying so writing out our own help menu (will eventually use a cli package)
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
 		fmt.Println("-fqdn  string")
-		fmt.Println("       The fully qualified domain name of the PCE")
+		fmt.Println("       The fully qualified domain name of the PCE. Required.")
 		fmt.Println("-port  int")
 		fmt.Println("       The port of the PCE. (default 8443)")
 		fmt.Println("-org   int")
 		fmt.Println("       The org value for the PCE. (default 1)")
 		fmt.Println("-user  string")
-		fmt.Println("       API user or email address.")
+		fmt.Println("       API user or email address. Required.")
 		fmt.Println("-pwd   string")
-		fmt.Println("       API key if using API user or password if using email address.")
+		fmt.Println("       API key if using API user or password if using email address. Required.")
 		fmt.Println("-in    string")
 		fmt.Println("       CSV input file to be used to identify unmanaged workloads. (default \"umwl_finder_default.cs\")")
 		fmt.Println("-out   string")
@@ -87,11 +87,10 @@ func main() {
 		fmt.Println("-x     Disable TLS checking.")
 		fmt.Println("-t     PrettyPrint the CSV to the terminal.")
 		fmt.Println("-v     Verbose output provides additional columns in output to explain the match reason.")
-		fmt.Println("-w     Include IP addresses already assigned to workloads.")
-		fmt.Println("-p     Private IP addresses to only suggest workloads in the RFC 1918 address space.")
-		fmt.Println("-g     Output CSV for GAT import. -w, -d, and -v are ignored")
-		fmt.Println("-i     Output two CSVs (workloads and labels) to import via ILO-CLI. -w, -d, and -v are ignored.")
-
+		fmt.Println("-w     Include IP addresses already assigned to workloads to suggest or verify labels.")
+		fmt.Println("-p     Limit suggested workloads to the RFC 1918 address space.")
+		fmt.Println("-g     Output CSV for GAT import. -w and -v are ignored with -g.")
+		fmt.Println("-i     Output two CSVs (workloads and labels) to import via ILO-CLI. -w and -v are ignored with -i.")
 	}
 
 	// Parse flags
@@ -112,7 +111,7 @@ func main() {
 		*term = false
 	}
 
-	// Run some quick checks
+	// Run some quick checks on the required fields
 	if len(*fqdn) == 0 || len(*user) == 0 || len(*pwd) == 0 {
 		flag.Usage()
 		log.Fatalf("ERROR - Required flags not included")
