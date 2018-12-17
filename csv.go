@@ -17,6 +17,7 @@ type coreService struct {
 	optionalPorts      []int
 	optionalPortRanges [][]int
 	numOptionalPorts   int
+	numFlows           int
 	processes          []string
 	numProcessesReq    int
 	app                string
@@ -27,20 +28,19 @@ type coreService struct {
 
 func csvParser(filename string) []coreService {
 
-	/**
-	CSV Fields:
-	0 - name
-	1 - provider
-	2 - required_ports
-	3 - optional_ports
-	4 - num_optional_ports_required
-	5 - processes
-	6 - process_required
-	7 - role
-	8 - app
-	9 - env
-	10 - loc
-	**/
+	// Set CSV columns here to avoid changing multiple locations
+	csvName := 0
+	csvProvider := 1
+	csvReqPorts := 2
+	csvOptPorts := 3
+	csvNumOptPorts := 4
+	csvNumFlows := 5
+	csvProcesses := 6
+	csvNumProcess := 7
+	csvRole := 8
+	csvApp := 9
+	csvEnv := 10
+	csvLoc := 11
 
 	var coreServices []coreService
 
@@ -58,6 +58,7 @@ func csvParser(filename string) []coreService {
 		optPortRangesInt := [][]int{}
 		numOptPorts := 0
 		numProcessesReq := 0
+		numFlows := 0
 
 		// Increment the counter
 		i++
@@ -75,12 +76,12 @@ func csvParser(filename string) []coreService {
 
 			// Set provider
 			provider := true
-			if line[1] == "0" {
+			if line[csvProvider] == "0" {
 				provider = false
 			}
 			// Set the required ports slice if there is any text in the field
-			if len(line[2]) > 0 {
-				requiredPortsStr := strings.Split(line[2], " ")
+			if len(line[csvReqPorts]) > 0 {
+				requiredPortsStr := strings.Split(line[csvReqPorts], " ")
 				for _, strPort := range requiredPortsStr {
 					intPort, err := strconv.Atoi(strPort)
 					if err != nil {
@@ -91,10 +92,10 @@ func csvParser(filename string) []coreService {
 			}
 
 			// Set the optional ports slice if there is any text in the field
-			if len(line[3]) > 0 {
+			if len(line[csvOptPorts]) > 0 {
 
 				// Split based on spaces
-				optPortsStr := strings.Split(line[3], " ")
+				optPortsStr := strings.Split(line[csvOptPorts], " ")
 
 				for _, strPort := range optPortsStr {
 					rangePortInt := []int{}
@@ -124,16 +125,24 @@ func csvParser(filename string) []coreService {
 			}
 
 			// Convert the number of optional ports to int if there is any text in the field
-			if len(line[4]) > 0 {
-				numOptPorts, err = strconv.Atoi(line[4])
+			if len(line[csvNumOptPorts]) > 0 {
+				numOptPorts, err = strconv.Atoi(line[csvNumOptPorts])
 				if err != nil {
 					log.Fatalf("ERROR - Converting number of required ports to int on line %d - %s", i, err)
 				}
 			}
 
+			// Convert the number of flows to int
+			if len(line[csvNumFlows]) > 0 {
+				numFlows, err = strconv.Atoi(line[csvNumFlows])
+				if err != nil {
+					log.Fatalf("ERROR - Converting number of flows to int on line %d - %s", i, err)
+				}
+			}
+
 			// Convert the number of processes to int if there is any text in the field
 			if len(line[6]) > 0 {
-				numProcessesReq, err = strconv.Atoi(line[6])
+				numProcessesReq, err = strconv.Atoi(line[csvNumProcess])
 				if err != nil {
 					log.Fatalf("ERROR - Converting number of required consumer services to int on line %d - %s", i, err)
 				}
@@ -141,18 +150,19 @@ func csvParser(filename string) []coreService {
 
 			// Append to the coreServices slice
 			coreServices = append(coreServices, coreService{
-				name:               line[0],
+				name:               line[csvName],
 				provider:           provider,
 				requiredPorts:      reqPortsInt,
 				optionalPorts:      optPortsInt,
 				optionalPortRanges: optPortRangesInt,
+				numFlows:           numFlows,
 				numOptionalPorts:   numOptPorts,
-				processes:          strings.Split(line[5], " "),
+				processes:          strings.Split(line[csvProcesses], " "),
 				numProcessesReq:    numProcessesReq,
-				app:                line[8],
-				env:                line[9],
-				loc:                line[10],
-				role:               line[7]})
+				app:                line[csvApp],
+				env:                line[csvEnv],
+				loc:                line[csvLoc],
+				role:               line[csvRole]})
 
 		}
 	}
