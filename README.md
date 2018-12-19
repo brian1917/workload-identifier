@@ -50,4 +50,4 @@ Usage of unmanaged-maker:
   ```
 
   ## Hostname Resolution
-  When an unmanaged workload is identified, the tool will attempt to resolve its hostname. The default allows for 5 second to resolve the hostname. It can be changed via the `-timeout` flag. If the hostname cannot be found, the output will use the name from the input file and the IP address. For example, `ldap - 10.0.80.3`
+  When an unmanaged workload is identified, the tool will attempt to resolve its hostname. The default allows for 5 second to resolve the hostname. It can be changed via the `-time` flag. If the hostname cannot be found, the output will use the name from the input file and the IP address. For example, `ldap - 10.0.80.3`
