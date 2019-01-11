@@ -6,7 +6,7 @@ CLI tool that suggests unmanaged workloads for the Illumio PCE from observed tra
 ## Input CSV File
 The tool requires an input CSV with information on how to match IP addresses from observed traffic to unmanaged workloads. The repository includes a default CSV that is suggested to be used as a starting point. Add to it as needed.
 * **name** - name of the service being identified (e.g., domain controller, LDAP, etc.)
-* **provider** - 1 if the workload is a provider or 0 if it is a consumer. For example, a Domain Controllers will be on the provider of observed traffic. McAfee workloads will be the consumer on traffic over port 8081.
+* **provider** - 1 if the workload is a provider or 0 if it is a consumer. For example, a Domain Controllers will be the provider of observed traffic. McAfee workloads will be the consumer on traffic over port 8081.
 * **required_ports** - list of ports that _must_ be observed to be considered a match. Separate ports by a space. *_Ranges are not allowed_*.
 * **optional_ports** - list of ports that some must be observed to be considered a match. Separate ports by a space. Ranges are allowed and should be written as 49152-65535 with no spaces. *_A match in a range only counts once_*. For example, if a range is given as 100-200 and traffic is observed on 101 and 102, it counted as 1 optional match. This avoids situations like a server matching as a domain controller because several high end ports were identified.
 * **num_optional_ports** - number of optional ports that must be matched.
@@ -35,7 +35,7 @@ Usage of unmanaged-maker:
 -app   string
        App name. Explorer results focus on that app as provider or consumer. Default is all apps.
 -in    string
-       CSV input file to be used to identify unmanaged workloads. (default "umwl_finder_default.cs")
+       CSV input file to be used to identify unmanaged workloads. (default "umwl_finder_default.csv")
 -out   string
        File to write the unmanaged workloads to. (default "umwl_output.csv")
 -time  int
