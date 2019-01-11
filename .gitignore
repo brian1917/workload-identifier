@@ -2,5 +2,5 @@
 misc/*
 *.csv
 *.xlsx
-!umwl_finder_default.csv
+!unmanaged-maker_default.csv
 bin/*
