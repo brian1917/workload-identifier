@@ -54,9 +54,9 @@ func main() {
 	user := flag.String("user", "", "API user or email address.")
 	pwd := flag.String("pwd", "", "API key if using API user or password if using email address.")
 	app := flag.String("app", "", "App name. Explorer results focus on that app as provider or consumer. Default is all apps")
-	csvFile := flag.String("in", "unmanaged-maker_default", "CSV input file to be used to identify unmanaged workloads.")
+	csvFile := flag.String("in", "unmanaged-maker_default.csv", "CSV input file to be used to identify unmanaged workloads.")
 	outputFile := flag.String("out", "umwl_output.csv", "File to write the unmanaged workloads to.")
-	lookupTO := flag.Int("timeout", 5, "Timeout to lookup hostname in seconds.")
+	lookupTO := flag.Int("time", 1000, "Timeout to lookup hostname in ms.")
 	disableTLS := flag.Bool("x", false, "Disable TLS checking.")
 	term := flag.Bool("t", false, "PrettyPrint the CSV to the terminal.")
 	verbose := flag.Bool("v", false, "Verbose output provides additional columns in output to explain the match reason.")
@@ -86,7 +86,7 @@ func main() {
 		fmt.Println("-out   string")
 		fmt.Println("       File to write the unmanaged workloads to. (default \"umwl_output.csv\")")
 		fmt.Println("-time  int")
-		fmt.Println("       Timeout to lookup hostname in seconds. (default 5)")
+		fmt.Println("       Timeout to lookup hostname in ms. (default 1000)")
 		fmt.Println("-x     Disable TLS checking.")
 		fmt.Println("-t     PrettyPrint the CSV to the terminal.")
 		fmt.Println("-v     Verbose output provides additional columns in output to explain the match reason.")
@@ -260,24 +260,37 @@ func main() {
 
 	// Get the hostnames for the final matches
 	var finalMatchesHost []match
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(*lookupTO)*time.Second)
-	defer cancel()
-	var r net.Resolver
-	for _, fm := range finalMatches {
-		if fm.wlhostname == "IP ONLY - NO WORKLOAD" {
-			names, _ := r.LookupAddr(ctx, fm.ipAddress)
-			if len(names) > 2 {
-				fm.hostname = fmt.Sprintf("%s; %s; and %d more", names[0], names[1], len(names)-2)
+	if *lookupTO > 0 {
+		ctx, cancel := context.WithTimeout(context.TODO(), time.Duration(*lookupTO)*time.Millisecond)
+		defer cancel()
+		var r net.Resolver
+		for _, fm := range finalMatches {
+			if fm.wlhostname == "IP ONLY - NO WORKLOAD" {
+				names, _ := r.LookupAddr(ctx, fm.ipAddress)
+				if len(names) > 2 {
+					fm.hostname = fmt.Sprintf("%s; %s; and %d more", names[0], names[1], len(names)-2)
+				} else {
+					fm.hostname = strings.Join(names, ";")
+				}
+				if fm.hostname == "" {
+					fm.hostname = fmt.Sprintf("%s - %s", fm.ipAddress, fm.csname)
+				}
 			} else {
-				fm.hostname = strings.Join(names, ";")
+				fm.hostname = fm.wlhostname
 			}
-			if fm.hostname == "" {
-				fm.hostname = fmt.Sprintf("%s - %s", fm.ipAddress, fm.csname)
-			}
-		} else {
-			fm.hostname = fm.wlhostname
+			finalMatchesHost = append(finalMatchesHost, fm)
 		}
-		finalMatchesHost = append(finalMatchesHost, fm)
+	} else {
+		for _, fm := range finalMatches {
+			if fm.wlhostname == "IP ONLY - NO WORKLOAD" {
+				if fm.hostname == "" {
+					fm.hostname = fmt.Sprintf("%s - %s", fm.ipAddress, fm.csname)
+				}
+			} else {
+				fm.hostname = fm.wlhostname
+			}
+			finalMatchesHost = append(finalMatchesHost, fm)
+		}
 	}
 
 	ipAddr := make(map[string]int)
