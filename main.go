@@ -24,6 +24,10 @@ type match struct {
 	role       string
 	reason     string
 	wlhostname string
+	eApp       string
+	eEnv       string
+	eLoc       string
+	eRole      string
 }
 
 // Contains checks if an integer is in a slice
@@ -92,7 +96,7 @@ func main() {
 		fmt.Println("       Label to exclude as a consumer role")
 		fmt.Println("-x     Disable TLS checking.")
 		fmt.Println("-t     PrettyPrint the CSV to the terminal.")
-		fmt.Println("-v     Verbose output provides additional columns in output to explain the match reason.")
+		// fmt.Println("-v     Verbose output provides additional columns in output to explain the match reason.") MADE DEFAULT YES CANNOT TURN OFF
 		fmt.Println("-w     Include IP addresses already assigned to workloads to suggest or verify labels.")
 		fmt.Println("-p     Limit suggested workloads to the RFC 1918 address space.")
 		fmt.Println("-g     Output CSV for GAT import. -w and -v are ignored with -g.")
@@ -116,6 +120,9 @@ func main() {
 		*dupes = false
 		*term = false
 	}
+
+	// Set verbose output as true for default. Decide later if we want to remove the option
+	*verbose = true
 
 	// Run some quick checks on the required fields
 	if len(*fqdn) == 0 || len(*user) == 0 || len(*pwd) == 0 {
@@ -217,7 +224,9 @@ func main() {
 	}
 
 	// Remove entries where the IP Address is assigned to a workload
-	allIPs := make(map[string]string)
+	allIPNames := make(map[string]string)
+	allIPWLs := make(map[string]illumioapi.Workload)
+
 	wls, _, err := illumioapi.GetAllWorkloads(pce)
 	if err != nil {
 		log.Fatalf("ERROR - getting all workloads - %s", err)
@@ -229,14 +238,15 @@ func main() {
 			if net.ParseIP(wl.Hostname) == nil && len(wl.Hostname) > 0 {
 				name = wl.Hostname
 			}
-			allIPs[iface.Address] = name
+			allIPNames[iface.Address] = name
+			allIPWLs[iface.Address] = wl
 		}
 	}
 	sNonWlMatches := []match{}
 	sMatchesWLName := []match{}
 	for _, sm := range sMatches {
-		sm.wlhostname = allIPs[sm.ipAddress]
-		if _, ok := allIPs[sm.ipAddress]; !ok {
+		sm.wlhostname = allIPNames[sm.ipAddress]
+		if _, ok := allIPNames[sm.ipAddress]; !ok {
 			sm.wlhostname = "IP ONLY - NO WORKLOAD"
 			sNonWlMatches = append(sNonWlMatches, sm)
 		}
@@ -309,6 +319,44 @@ func main() {
 		}
 	}
 
+	// PUT IN EXISTING LABELS - NEED TO CLEAN THIS UP LATER
+	var finalMatchesHostWithExistingLabels []match
+	allLabels := make(map[string]illumioapi.Label)
+	labels, _, err := illumioapi.GetAllLabels(pce)
+	if err != nil {
+		log.Fatalf("ERROR - getting all workloads - %s", err)
+	}
+
+	// Populate Map
+	for _, l := range labels {
+		allLabels[l.Href] = l
+	}
+
+	for _, m := range finalMatchesHost {
+		for _, l := range allIPWLs[m.ipAddress].Labels {
+			switch {
+			case allLabels[l.Href].Key == "app":
+				{
+					m.eApp = allLabels[l.Href].Value
+				}
+			case allLabels[l.Href].Key == "role":
+				{
+					m.eRole = allLabels[l.Href].Value
+				}
+			case allLabels[l.Href].Key == "env":
+				{
+					m.eEnv = allLabels[l.Href].Value
+				}
+			case allLabels[l.Href].Key == "loc":
+				{
+					m.eLoc = allLabels[l.Href].Value
+				}
+			}
+
+		}
+		finalMatchesHostWithExistingLabels = append(finalMatchesHostWithExistingLabels, m)
+	}
+
 	ipAddr := make(map[string]int)
 	// Write out the CSV file
 	fileName := *outputFile
@@ -334,7 +382,7 @@ func main() {
 			}
 		case *verbose:
 			{
-				fmt.Fprintf(file, "ip_address,hostname,app,role,env,loc,existing_workload,match_reason\r\n")
+				fmt.Fprintf(file, "ip_address,hostname,existing_app,existing_role,existing_env,existing_loc,app,role,env,loc,existing_workload,match_reason\r\n")
 			}
 		default:
 			{
@@ -343,7 +391,7 @@ func main() {
 		}
 
 		// Write the data
-		for _, fmh := range finalMatchesHost {
+		for _, fmh := range finalMatchesHostWithExistingLabels {
 			if _, ok := ipAddr[fmh.ipAddress]; !ok || *dupes {
 				ipAddr[fmh.ipAddress] = 1
 				wlCheck := "Yes"
@@ -361,7 +409,7 @@ func main() {
 					}
 				case *verbose:
 					{
-						fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s,%s,%s\r\n", fmh.ipAddress, fmh.hostname, fmh.app, fmh.role, fmh.env, fmh.loc, wlCheck, fmh.reason)
+						fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", fmh.ipAddress, fmh.hostname, fmh.eApp, fmh.eRole, fmh.eEnv, fmh.eLoc, fmh.app, fmh.role, fmh.env, fmh.loc, wlCheck, fmh.reason)
 					}
 				default:
 					{

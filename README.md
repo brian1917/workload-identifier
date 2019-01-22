@@ -42,7 +42,6 @@ Usage of unmanaged-maker:
        Timeout to lookup hostname in seconds. (default 5)
 -x     Disable TLS checking.
 -t     PrettyPrint the CSV to the terminal.
--v     Verbose output provides additional columns in output to explain the match reason.
 -w     Include IP addresses already assigned to workloads to suggest or verify labels.
 -p     Limit suggested workloads to the RFC 1918 address space.
 -g     Output CSV for GAT import. -w and -v are ignored with -g.
