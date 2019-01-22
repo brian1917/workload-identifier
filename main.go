@@ -57,6 +57,7 @@ func main() {
 	csvFile := flag.String("in", "unmanaged-maker_default.csv", "CSV input file to be used to identify unmanaged workloads.")
 	outputFile := flag.String("out", "umwl_output.csv", "File to write the unmanaged workloads to.")
 	lookupTO := flag.Int("time", 1000, "Timeout to lookup hostname in ms.")
+	consExcl := flag.String("excl", "", "Label to exclude as a consumer.")
 	disableTLS := flag.Bool("x", false, "Disable TLS checking.")
 	term := flag.Bool("t", false, "PrettyPrint the CSV to the terminal.")
 	verbose := flag.Bool("v", false, "Verbose output provides additional columns in output to explain the match reason.")
@@ -87,6 +88,8 @@ func main() {
 		fmt.Println("       File to write the unmanaged workloads to. (default \"umwl_output.csv\")")
 		fmt.Println("-time  int")
 		fmt.Println("       Timeout to lookup hostname in ms. (default 1000)")
+		fmt.Println("-excl  string")
+		fmt.Println("       Label to exclude as a consumer role")
 		fmt.Println("-x     Disable TLS checking.")
 		fmt.Println("-t     PrettyPrint the CSV to the terminal.")
 		fmt.Println("-v     Verbose output provides additional columns in output to explain the match reason.")
@@ -147,11 +150,24 @@ func main() {
 	// Parse the CSV
 	coreServices := csvParser(*csvFile)
 
+	// Get the label if we are going to do a consumer exclude
+	var exclLabel illumioapi.Label
+	if len(*consExcl) > 0 {
+		exclLabel, _, err := illumioapi.GetLabel(pce, "role", *consExcl)
+		if err != nil {
+			log.Fatalf("ERROR - Getting label HREF - %s", err)
+		}
+		if exclLabel.Href == "" {
+			log.Fatalf("ERROR- %s does not exist as an role label.", *consExcl)
+		}
+	}
+
 	// Create the default query struct
 	tq := illumioapi.TrafficQuery{
 		StartTime:      time.Date(2013, 1, 1, 0, 0, 0, 0, time.UTC),
 		EndTime:        time.Date(2020, 12, 30, 0, 0, 0, 0, time.UTC),
 		PolicyStatuses: []string{"allowed", "potentially_blocked", "blocked"},
+		SourcesExclude: []string{exclLabel.Href},
 		MaxFLows:       100000}
 
 	// If an app is provided, we want to run with that app as the consumer.
