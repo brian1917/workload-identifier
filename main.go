@@ -28,6 +28,7 @@ type match struct {
 	eEnv       string
 	eLoc       string
 	eRole      string
+	wlHref     string
 }
 
 // Contains checks if an integer is in a slice
@@ -99,8 +100,9 @@ func main() {
 		// fmt.Println("-v     Verbose output provides additional columns in output to explain the match reason.") MADE DEFAULT YES CANNOT TURN OFF
 		fmt.Println("-w     Include IP addresses already assigned to workloads to suggest or verify labels.")
 		fmt.Println("-p     Limit suggested workloads to the RFC 1918 address space.")
-		fmt.Println("-g     Output CSV for GAT import. -w and -v are ignored with -g.")
+		fmt.Println("-g     Output CSV for GAT import to create UMWLs. -w and -v are ignored with -g.")
 		fmt.Println("-i     Output two CSVs (workloads and labels) to import via ILO-CLI. -w and -v are ignored with -i.")
+		fmt.Println("-l     Appends columns to end of CSV for GAT labeling.")
 	}
 
 	// Parse flags
@@ -246,6 +248,7 @@ func main() {
 	sMatchesWLName := []match{}
 	for _, sm := range sMatches {
 		sm.wlhostname = allIPNames[sm.ipAddress]
+		sm.wlHref = allIPWLs[sm.ipAddress].Href
 		if _, ok := allIPNames[sm.ipAddress]; !ok {
 			sm.wlhostname = "IP ONLY - NO WORKLOAD"
 			sNonWlMatches = append(sNonWlMatches, sm)
@@ -382,7 +385,7 @@ func main() {
 			}
 		case *verbose:
 			{
-				fmt.Fprintf(file, "ip_address,hostname,existing_app,existing_role,existing_env,existing_loc,app,role,env,loc,existing_workload,match_reason\r\n")
+				fmt.Fprintf(file, "ip_address,hostname,existing_workload,current_role,current_app,current_env,current_loc,match_reason,hostname,suggested_role,suggested_app,suggested_env,suggested_loc,href\r\n")
 			}
 		default:
 			{
@@ -401,7 +404,7 @@ func main() {
 				switch {
 				case *gat:
 					{
-						fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,eth0:%s,%s,%s\r\n", fmh.hostname, "", fmh.role, fmh.app, fmh.env, fmh.loc, fmh.hostname, "", "", "", fmh.ipAddress, fmh.ipAddress, "", "")
+						fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,eth0:%s,%s,%s\r\n", fmh.hostname, "", fmh.role, fmh.app, fmh.env, fmh.loc, fmh.hostname, "", "", "", fmh.ipAddress, "eth0:"+fmh.ipAddress, "", "")
 					}
 				case *ilo:
 					{
@@ -409,7 +412,7 @@ func main() {
 					}
 				case *verbose:
 					{
-						fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", fmh.ipAddress, fmh.hostname, fmh.eApp, fmh.eRole, fmh.eEnv, fmh.eLoc, fmh.app, fmh.role, fmh.env, fmh.loc, wlCheck, fmh.reason)
+						fmt.Fprintf(file, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", fmh.ipAddress, fmh.hostname, wlCheck, fmh.eRole, fmh.eApp, fmh.eEnv, fmh.eLoc, fmh.reason, fmh.hostname, fmh.role, fmh.app, fmh.env, fmh.loc, fmh.wlHref)
 					}
 				default:
 					{
