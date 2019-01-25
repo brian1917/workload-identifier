@@ -8,7 +8,7 @@ import (
 	"github.com/brian1917/illumioapi"
 )
 
-func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService, provider, incWL bool) []match {
+func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService, provider bool) []match {
 	// Create a slice to hold the matches
 	var matches []match
 

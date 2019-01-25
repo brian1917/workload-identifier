@@ -2,14 +2,14 @@ package main
 
 import "github.com/brian1917/illumioapi"
 
-func findProcesses(traffic []illumioapi.TrafficAnalysis, coreServices []coreService, incWL bool) []match {
+func findProcesses(traffic []illumioapi.TrafficAnalysis, coreServices []coreService) []match {
 	// Create a slice to hold the matches
 	var matches []match
 
 	// Drop all traffic coming from a workload - that means the consumer is known
 	var unkConsTraffic []illumioapi.TrafficAnalysis
 	for _, entry := range traffic {
-		if (!incWL && entry.Src.Workload == nil) || (incWL && entry.Src.IP != entry.Dst.IP) {
+		if entry.Src.IP != entry.Dst.IP {
 			unkConsTraffic = append(unkConsTraffic, entry)
 		}
 	}
