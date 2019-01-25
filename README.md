@@ -1,11 +1,11 @@
 # Workload Identifier
 
 ## Description
-CLI tool that analyzes traffic to 
+CLI tool that analyzes traffic from explorer to do the following: 
 1. Identify and label potential unmanaged workloads.
 2. Verify or recommend labels for existing managed and unmanaged workloads.
 
-The output of the tool should be reviewed and then used to import into the PCE to create and label unmanaged workloads and label existing workloads. The default output is best for reviewing data. When you are ready to import, run the tool with the `-g` flag to create CSVs to be used with GAT or the `-i` flag to create CSVs to be used with the ILO-CLI tool.
+The output should be reviewed and then re-run with the `-g` or `-i` flag to create CSVs used to import to the PCE.
 
 ## Usage
 `workload-identifier -h`
