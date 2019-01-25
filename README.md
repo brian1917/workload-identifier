@@ -1,7 +1,40 @@
-# Unmanaged Maker
+# Workload Identifier
 
 ## Description
-CLI tool that suggests unmanaged workloads for the Illumio PCE from observed traffic in Explorer. The output of the tool should be reviewed and then used to import into the PCE to create and label the workloads. The default output is the easiest to consume. When you are ready to import, you can run the tool with either the `-g` flag to create a CSV to be used with GAT to import the workloads and labels or the `-i` flag to create two CSVs (one for workloads and one for labels) to be used with the ILO-CLI tool.
+CLI tool that analyzes traffic to 
+1. Identify and label potential unmanaged workloads.
+2. Verify or recommend labels for existing managed and unmanaged workloads.
+
+The output of the tool should be reviewed and then used to import into the PCE to create and label unmanaged workloads and label existing workloads. The default output is best for reviewing data. When you are ready to import, run the tool with the `-g` flag to create CSVs to be used with GAT or the `-i` flag to create CSVs to be used with the ILO-CLI tool.
+
+## Usage
+`workload-identifier -h`
+```
+Usage of workload-identifier:
+-fqdn  string
+       The fully qualified domain name of the PCE. Required.
+-port  int
+       The port of the PCE. (default 8443)
+-org   int
+       The org value for the PCE. (default 1)
+-user  string
+       API user or email address. Required.
+-pwd   string
+       API key if using API user or password if using email address. Required.
+-app   string
+       App name. Explorer results focus on that app as provider or consumer. Default is all apps.
+-in    string
+       CSV input file to be used to identify unmanaged workloads. (default "workload-identifier_default.csv")
+-time  int
+       Timeout to lookup hostname in ms. (default 1000)
+-excl  string
+       Label to exclude as a consumer role
+-x     Disable TLS checking.
+-w     Exclude IP addresses already assigned to workloads to suggest or verify labels.
+-p     Limit suggested workloads to the RFC 1918 address space.
+-g     Output CSVs for GAT import to create UMWLs and label existing workloads.
+-i     Output CSVs for ILO-CLI import to create UMWLs and label existing workloads.
+```
 
 ## Input CSV File
 The tool requires an input CSV with information on how to match IP addresses from observed traffic to unmanaged workloads. The repository includes a default CSV that is suggested to be used as a starting point. Add to it as needed.
@@ -18,35 +51,5 @@ The tool requires an input CSV with information on how to match IP addresses fro
 * **env** - Illumio environment label be assigned.
 * **loc** - Illumio location label to be assigned.
 
-## Usage
-`unmanaged-maker -h`
-```
-Usage of unmanaged-maker:
--fqdn  string
-       The fully qualified domain name of the PCE. Required.
--port  int
-       The port of the PCE. (default 8443)
--org   int
-       The org value for the PCE. (default 1)
--user  string
-       API user or email address. Required.
--pwd   string
-       API key if using API user or password if using email address. Required.
--app   string
-       App name. Explorer results focus on that app as provider or consumer. Default is all apps.
--in    string
-       CSV input file to be used to identify unmanaged workloads. (default "umwl_finder_default.csv")
--out   string
-       File to write the unmanaged workloads to. (default "umwl_output.csv")
--time  int
-       Timeout to lookup hostname in seconds. (default 5)
--x     Disable TLS checking.
--t     PrettyPrint the CSV to the terminal.
--w     Include IP addresses already assigned to workloads to suggest or verify labels.
--p     Limit suggested workloads to the RFC 1918 address space.
--g     Output CSV for GAT import. -w and -v are ignored with -g.
--i     Output two CSVs (workloads and labels) to import via ILO-CLI. -w and -v are ignored with -i.
-  ```
-
-  ## Hostname Resolution
-  When an unmanaged workload is identified, the tool will attempt to resolve its hostname. The default allows for 5 second to resolve the hostname. It can be changed via the `-time` flag. If the hostname cannot be found, the output will use the name from the input file and the IP address. For example, `ldap - 10.0.80.3`
+## Hostname Resolution
+When an unmanaged workload is identified, the tool will attempt to resolve its hostname. The default allows for 5 second to resolve the hostname. It can be changed via the `-time` flag. If the hostname cannot be found, the output will use the name from the input file and the IP address. For example, `ldap - 10.0.80.3`
