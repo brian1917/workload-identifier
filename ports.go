@@ -8,9 +8,10 @@ import (
 	"github.com/brian1917/illumioapi"
 )
 
-func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService, provider bool) []match {
-	// Create a slice to hold the matches
+func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService, provider bool) ([]match, []match) {
+	// Create a slice to hold the matches and non-matches
 	var matches []match
+	var nonmatches []match
 
 	var ft []illumioapi.TrafficAnalysis
 
@@ -32,15 +33,6 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 		ipPortCount[ip+"-"+strconv.Itoa(entry.ExpSrv.Port)] = ipPortCount[ip+"-"+strconv.Itoa(entry.ExpSrv.Port)] + entry.NumConnections
 
 	}
-
-	/** DEBUG
-	for ipadd, count := range ipPortCount {
-		if ipadd[:10] == "172.16.1.4" && len(ipadd) == 10 {
-			fmt.Printf("%s - %d\n", ipadd, count)
-		}
-
-	}
-	END DEBUG **/
 
 	// For each traffic flow not going to a workload, see if it already exists in the ipAddrPorts map. If no, add it.
 	ipPorts := make(map[string][]int)
@@ -113,10 +105,22 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 					reason := fmt.Sprintf("%s is the %s on traffic over %s %s. Required and optional non-ranges flow count is %d. ", ipAddr, t, s, strings.Join(portMatches, " "), flowCounter)
 
 					matches = append(matches, match{csname: cs.name, ipAddress: ipAddr, app: cs.app, env: cs.env, loc: cs.loc, role: cs.role, reason: reason})
+				} else if provider {
+					// Convert slice of int to slice of string
+					var portStr []string
+					for _, p := range ports {
+						if p == 0 {
+							portStr = append(portStr, "ICMP")
+						} else {
+							portStr = append(portStr, strconv.Itoa(p))
+						}
+					}
+					reason := fmt.Sprintf("Traffic observed on ports %s", strings.Join(portStr, ";"))
+					nonmatches = append(nonmatches, match{ipAddress: ipAddr, reason: reason})
 				}
 			}
 		}
 	}
 
-	return matches
+	return matches, nonmatches
 }

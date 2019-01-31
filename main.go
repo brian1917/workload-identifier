@@ -99,9 +99,10 @@ func main() {
 	consExcl := flag.String("excl", "", "Label to exclude as a consumer.")
 	disableTLS := flag.Bool("x", false, "Disable TLS checking.")
 	exclWLs := flag.Bool("w", false, "Exclude IP addresses already assigned to workloads to suggest or verify labels.")
-	privOnly := flag.Bool("p", false, "Limit suggested workloads to the RFC 1918 address space.")
+	privOnly := flag.Bool("p", false, "Exclude public IP addresses and limit suggested workloads to the RFC 1918 address space.")
 	gat := flag.Bool("g", false, "Output CSV for GAT import. -w and -v are ignored with -g.")
 	ilo := flag.Bool("i", false, "Output CSVs for ILO-CLI import to create UMWLs and label existing workloads.")
+	nonMatchExcl := flag.Bool("n", false, "Exclude information (ports and hostname lookups) for workloads and IP Addresses that do not match a service.")
 
 	// Go's alphabetical ordering is annoying so writing out our own help menu (will eventually use a cli package)
 	flag.Usage = func() {
@@ -126,7 +127,8 @@ func main() {
 		fmt.Println("       Label to exclude as a consumer role")
 		fmt.Println("-x     Disable TLS checking.")
 		fmt.Println("-w     Exclude IP addresses already assigned to workloads to suggest or verify labels.")
-		fmt.Println("-p     Limit suggested workloads to the RFC 1918 address space.")
+		fmt.Println("-n     Exclude information (ports and hostname lookups) for workloads and IP Addresses that do not match a service.")
+		fmt.Println("-p     Exclude public IP addresses and limit suggested workloads to the RFC 1918 address space.")
 		fmt.Println("-g     Output CSVs for GAT import to create UMWLs and label existing workloads.")
 		fmt.Println("-i     Output CSVs for ILO-CLI import to create UMWLs and label existing workloads.")
 	}
@@ -165,6 +167,35 @@ func main() {
 
 	// Parse the CSV
 	coreServices := csvParser(*csvFile)
+
+	// Get all workloads and create workload map
+	allIPWLs := make(map[string]illumioapi.Workload)
+	wls, _, err := illumioapi.GetAllWorkloads(pce)
+	if err != nil {
+		log.Fatalf("ERROR - getting all workloads - %s", err)
+	}
+	for _, wl := range wls {
+		for _, iface := range wl.Interfaces {
+			// We are going to use the workloads name field. If hostname is populated and not an IP address, we put that value in workload name to use the hostname
+			if net.ParseIP(wl.Hostname) == nil && len(wl.Hostname) > 0 {
+				wl.Name = wl.Hostname
+			}
+			allIPWLs[iface.Address] = wl
+		}
+	}
+
+	// Get all labels and create label map
+	labels, _, err := illumioapi.GetAllLabels(pce)
+	if err != nil {
+		log.Fatalf("ERROR - getting all workloads - %s", err)
+	}
+	allLabels := make(map[string]illumioapi.Label)
+	for _, l := range labels {
+		allLabels[l.Href] = l
+	}
+
+	// Get time stamp for output files
+	timestamp := time.Now().Format("20060102_150405")
 
 	// Get the label if we are going to do a consumer exclude
 	var exclLabel illumioapi.Label
@@ -215,11 +246,58 @@ func main() {
 	}
 
 	// Get Providers and Consumers and combine into one slice
-	portProv := findPorts(traffic, coreServices, true)
-	portCons := findPorts(traffic, coreServices, false)
+	portProv, nonMatches := findPorts(traffic, coreServices, true)
+	portCons, _ := findPorts(traffic, coreServices, false)
 	process := findProcesses(traffic, coreServices)
 
 	matches := append(append(portProv, portCons...), process...)
+
+	// Remove any nonmatches that might be in matches from consumer side or process
+	var nmFinal []match
+	if !*nonMatchExcl {
+		matchCheck := make(map[string]int)
+		for _, m := range matches {
+			matchCheck[m.ipAddress] = 1
+		}
+		for _, nm := range nonMatches {
+			// If it's not in the map, process it and add to final slice
+			if _, ok := matchCheck[nm.ipAddress]; !ok {
+				// Check if RFC 1918
+				nm.rfc1918 = rfc1918(nm.ipAddress)
+				// Get host name
+				if *lookupTO > 0 {
+					nm.hostname = hostname(nm.ipAddress, *lookupTO)
+				}
+				// If there's no host name, use the IP address
+				if nm.hostname == "" {
+					nm.hostname = nm.ipAddress
+				}
+				// Populate existing label information
+				for _, l := range allIPWLs[nm.ipAddress].Labels {
+					switch {
+					case allLabels[l.Href].Key == "app":
+						{
+							nm.eApp = allLabels[l.Href].Value
+						}
+					case allLabels[l.Href].Key == "role":
+						{
+							nm.eRole = allLabels[l.Href].Value
+						}
+					case allLabels[l.Href].Key == "env":
+						{
+							nm.eEnv = allLabels[l.Href].Value
+						}
+					case allLabels[l.Href].Key == "loc":
+						{
+							nm.eLoc = allLabels[l.Href].Value
+						}
+					}
+				}
+				// Append to the final slice
+				nmFinal = append(nmFinal, nm)
+			}
+		}
+	}
 
 	// Sort the Matches by entries in the input CSV because when we write the data to the output CSV, we only write the first match.
 	sMatches := []match{}
@@ -229,32 +307,6 @@ func main() {
 				sMatches = append(sMatches, m)
 			}
 		}
-	}
-
-	// Get all workloads and create workload map
-	allIPWLs := make(map[string]illumioapi.Workload)
-	wls, _, err := illumioapi.GetAllWorkloads(pce)
-	if err != nil {
-		log.Fatalf("ERROR - getting all workloads - %s", err)
-	}
-	for _, wl := range wls {
-		for _, iface := range wl.Interfaces {
-			// We are going to use the workloads name field. If hostname is populated and not an IP address, we put that value in workload name to use the hostname
-			if net.ParseIP(wl.Hostname) == nil && len(wl.Hostname) > 0 {
-				wl.Name = wl.Hostname
-			}
-			allIPWLs[iface.Address] = wl
-		}
-	}
-
-	// Get all labels and create label map
-	labels, _, err := illumioapi.GetAllLabels(pce)
-	if err != nil {
-		log.Fatalf("ERROR - getting all workloads - %s", err)
-	}
-	allLabels := make(map[string]illumioapi.Label)
-	for _, l := range labels {
-		allLabels[l.Href] = l
 	}
 
 	// Process the match slice
@@ -317,24 +369,24 @@ func main() {
 	// Create the output csv file and add headers if needed (no headers for GAT)
 	var defaultFile, gatUmwlFile, gatLabelFile, iloUmwlFile, iloLabelFile *os.File
 
-	if len(matches) > 0 {
+	if len(matches) > 0 || len(nmFinal) > 0 {
 
 		// Always create the default file
-		defaultFile, err = os.Create("identified-workloads.csv")
+		defaultFile, err = os.Create("identified-workloads_" + timestamp + ".csv")
 		if err != nil {
 			log.Fatalf("ERROR - Creating file - %s\n", err)
 		}
 		defer defaultFile.Close()
-		fmt.Fprintf(defaultFile, "ip_address,name,existing_workload,current_role,current_app,current_env,current_loc,suggested_role,suggested_app,suggested_env,suggested_loc,match_reason\r\n")
+		fmt.Fprintf(defaultFile, "ip_address,name,status,current_role,current_app,current_env,current_loc,suggested_role,suggested_app,suggested_env,suggested_loc,reason\r\n")
 
 		// Export GAT format if requested
 		if *gat {
-			gatUmwlFile, err = os.Create("gat-create-umwls.csv")
+			gatUmwlFile, err = os.Create("gat-create-umwls_" + timestamp + ".csv")
 			if err != nil {
 				log.Fatalf("ERROR - Creating file - %s\n", err)
 			}
 			defer gatUmwlFile.Close()
-			gatLabelFile, err = os.Create("gat-update-labels.csv")
+			gatLabelFile, err = os.Create("gat-update-labels_" + timestamp + ".csv")
 			if err != nil {
 				log.Fatalf("ERROR - Creating file - %s\n", err)
 			}
@@ -343,12 +395,12 @@ func main() {
 
 		// Export ILO format if requested
 		if *ilo {
-			iloUmwlFile, err = os.Create("ilo-create-umwls.csv")
+			iloUmwlFile, err = os.Create("ilo-create-umwls_" + timestamp + ".csv")
 			if err != nil {
 				log.Fatalf("ERROR - Creating file - %s\n", err)
 			}
 			defer iloUmwlFile.Close()
-			iloLabelFile, err = os.Create("ilo-update-labels.csv")
+			iloLabelFile, err = os.Create("ilo-update-labels_" + timestamp + ".csv")
 			if err != nil {
 				log.Fatalf("ERROR - Creating file - %s\n", err)
 			}
@@ -371,20 +423,20 @@ func main() {
 				ipAddr[fm.ipAddress] = 1
 
 				// Check if it's a workload or IP address based off the host name
-				wlCheck := "Yes"
+				wlCheck := "Existing Workload - Match"
 				if fm.wlhostname == "IP ONLY - NO WORKLOAD" {
-					wlCheck = "No"
+					wlCheck = "Potential UMWL - Match"
 				}
 
 				// Always write to the default csv file
-				if wlCheck == "No" && *exclWLs || !*exclWLs {
+				if wlCheck == "Potential UMWL - Match" && *exclWLs || !*exclWLs {
 					fmt.Fprintf(defaultFile, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", fm.ipAddress, fm.hostname, wlCheck, fm.eRole, fm.eApp, fm.eEnv, fm.eLoc, fm.role, fm.app, fm.env, fm.loc, fm.reason)
 				}
 
 				// Write GAT CSV if requested
 				if *gat {
 					// Write the UMWLs
-					if wlCheck == "No" {
+					if wlCheck == "Potential UMWL - Match" {
 						ref++
 						fmt.Fprintf(gatUmwlFile, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", fm.hostname, "", fm.role, fm.app, fm.env, fm.loc, fm.hostname, "", "", "", fm.ipAddress, "eth0:"+fm.ipAddress, "gat-import", "ref-"+strconv.Itoa(ref))
 						// Write the update labels
@@ -396,8 +448,9 @@ func main() {
 				// Write ILO CSV if requested
 				if *ilo {
 					// Write the UMWLs
-					if wlCheck == "No" {
+					if wlCheck == "Potential UMWL - Match" {
 						fmt.Fprintf(iloUmwlFile, "%s,%s,%s\r\n", fm.hostname, fm.ipAddress, "")
+						fmt.Fprintf(iloLabelFile, "%s,%s,%s,%s,%s\r\n", fm.role, fm.app, fm.env, fm.loc, fm.ipAddress)
 						// Write the update labels
 					} else if !*exclWLs {
 						fmt.Fprintf(iloLabelFile, "%s,%s,%s,%s,%s\r\n", fm.role, fm.app, fm.env, fm.loc, fm.ipAddress)
@@ -406,6 +459,16 @@ func main() {
 
 			}
 
+		}
+
+		for _, nm := range nmFinal {
+			if _, ok := ipAddr[nm.ipAddress]; !ok {
+				ipAddr[nm.ipAddress] = 1
+				if _, ok := allIPWLs[nm.ipAddress]; ok {
+					fmt.Fprintf(defaultFile, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", nm.ipAddress, nm.hostname, "Existing Workload - No Match", nm.eRole, nm.eApp, nm.eEnv, nm.eLoc, nm.role, nm.app, nm.env, nm.loc, nm.reason)
+
+				}
+			}
 		}
 
 	}

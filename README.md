@@ -5,8 +5,6 @@ CLI tool that analyzes traffic from explorer to do the following:
 1. Identify and label potential unmanaged workloads.
 2. Verify or recommend labels for existing managed and unmanaged workloads.
 
-The output should be reviewed and then re-run with the `-g` or `-i` flag to create CSVs used to import to the PCE.
-
 ## Usage
 `workload-identifier -h`
 ```
@@ -31,7 +29,8 @@ Usage of workload-identifier:
        Label to exclude as a consumer role
 -x     Disable TLS checking.
 -w     Exclude IP addresses already assigned to workloads to suggest or verify labels.
--p     Limit suggested workloads to the RFC 1918 address space.
+-n     Exclude information (ports and hostname lookups) for workloads and IP Addresses that do not match a service.
+-p     Exclude public IP addresses and limit suggested workloads to the RFC 1918 address space.
 -g     Output CSVs for GAT import to create UMWLs and label existing workloads.
 -i     Output CSVs for ILO-CLI import to create UMWLs and label existing workloads.
 ```
