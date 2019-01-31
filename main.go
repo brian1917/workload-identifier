@@ -83,7 +83,30 @@ func hostname(ipAddr string, t int) string {
 		hostname = strings.Join(names, ";")
 	}
 	return hostname
+}
 
+// Workload Labels
+func (m *match) existingLabels(workloads map[string]illumioapi.Workload, labels map[string]illumioapi.Label) {
+	for _, l := range workloads[m.ipAddress].Labels {
+		switch {
+		case labels[l.Href].Key == "app":
+			{
+				m.eApp = labels[l.Href].Value
+			}
+		case labels[l.Href].Key == "role":
+			{
+				m.eRole = labels[l.Href].Value
+			}
+		case labels[l.Href].Key == "env":
+			{
+				m.eEnv = labels[l.Href].Value
+			}
+		case labels[l.Href].Key == "loc":
+			{
+				m.eLoc = labels[l.Href].Value
+			}
+		}
+	}
 }
 
 func main() {
@@ -273,26 +296,8 @@ func main() {
 					nm.hostname = nm.ipAddress
 				}
 				// Populate existing label information
-				for _, l := range allIPWLs[nm.ipAddress].Labels {
-					switch {
-					case allLabels[l.Href].Key == "app":
-						{
-							nm.eApp = allLabels[l.Href].Value
-						}
-					case allLabels[l.Href].Key == "role":
-						{
-							nm.eRole = allLabels[l.Href].Value
-						}
-					case allLabels[l.Href].Key == "env":
-						{
-							nm.eEnv = allLabels[l.Href].Value
-						}
-					case allLabels[l.Href].Key == "loc":
-						{
-							nm.eLoc = allLabels[l.Href].Value
-						}
-					}
-				}
+				nm.existingLabels(allIPWLs, allLabels)
+
 				// Append to the final slice
 				nmFinal = append(nmFinal, nm)
 			}
@@ -339,26 +344,7 @@ func main() {
 		sm.rfc1918 = rfc1918(sm.ipAddress)
 
 		// Populate existing label information
-		for _, l := range allIPWLs[sm.ipAddress].Labels {
-			switch {
-			case allLabels[l.Href].Key == "app":
-				{
-					sm.eApp = allLabels[l.Href].Value
-				}
-			case allLabels[l.Href].Key == "role":
-				{
-					sm.eRole = allLabels[l.Href].Value
-				}
-			case allLabels[l.Href].Key == "env":
-				{
-					sm.eEnv = allLabels[l.Href].Value
-				}
-			case allLabels[l.Href].Key == "loc":
-				{
-					sm.eLoc = allLabels[l.Href].Value
-				}
-			}
-		}
+		sm.existingLabels(allIPWLs, allLabels)
 
 		// Append results to a new array, taking into account the private IP address flag
 		if sm.rfc1918 && *privOnly || !*privOnly {
