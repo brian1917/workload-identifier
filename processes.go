@@ -1,6 +1,11 @@
 package main
 
-import "github.com/brian1917/illumioapi"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/brian1917/illumioapi"
+)
 
 func findProcesses(traffic []illumioapi.TrafficAnalysis, coreServices []coreService) []match {
 	// Create a slice to hold the matches
@@ -31,17 +36,20 @@ func findProcesses(traffic []illumioapi.TrafficAnalysis, coreServices []coreServ
 
 		// Cycle through core services to look for matches
 		for _, cs := range coreServices {
+			matchedProcesses := []string{}
 			processMatches := 0
 			for _, csProcess := range cs.processes {
 				if containsStr(processes, csProcess) {
 					processMatches++
+					matchedProcesses = append(matchedProcesses, csProcess)
 				}
 			}
 
 			// Check if it should count
 			if cs.numProcessesReq <= processMatches && cs.numProcessesReq > 0 {
 				if !cs.provider {
-					matches = append(matches, match{csname: cs.name, ipAddress: ipAddr, app: cs.app, env: cs.env, loc: cs.loc, role: cs.role})
+					reason := fmt.Sprintf("Identified by following processes: %s", strings.Join(matchedProcesses, ";"))
+					matches = append(matches, match{csname: cs.name, ipAddress: ipAddr, app: cs.app, env: cs.env, loc: cs.loc, role: cs.role, reason: reason})
 				}
 			}
 		}

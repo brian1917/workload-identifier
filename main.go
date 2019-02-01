@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -15,21 +16,22 @@ import (
 )
 
 type match struct {
-	csname     string
-	ipAddress  string
-	rfc1918    bool
-	hostname   string
-	app        string
-	env        string
-	loc        string
-	role       string
-	reason     string
-	wlhostname string
-	eApp       string
-	eEnv       string
-	eLoc       string
-	eRole      string
-	wlHref     string
+	csname      string
+	ipAddress   string
+	rfc1918     bool
+	hostname    string
+	app         string
+	env         string
+	loc         string
+	role        string
+	reason      string
+	wlhostname  string
+	eApp        string
+	eEnv        string
+	eLoc        string
+	eRole       string
+	wlHref      string
+	matchStatus int
 }
 
 // Contains checks if an integer is in a slice
@@ -325,6 +327,7 @@ func main() {
 		if _, ok := allIPWLs[sm.ipAddress]; !ok {
 			// Set the workload hostname if it's not a workload
 			sm.wlhostname = "IP ONLY - NO WORKLOAD"
+			sm.matchStatus = 1
 			if *lookupTO > 0 {
 				sm.hostname = hostname(sm.ipAddress, *lookupTO)
 				// If there's no match, use "IP - CSNAME"
@@ -402,6 +405,7 @@ func main() {
 		ref := 0
 
 		// Iterate through final matches
+		sort.Slice(finalMatches, func(i, j int) bool { return finalMatches[i].matchStatus < finalMatches[j].matchStatus })
 		for _, fm := range finalMatches {
 
 			// Don't write if the IP address matched twice (here is where you could allow duplicates)

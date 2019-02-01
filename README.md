@@ -19,18 +19,18 @@ Usage of workload-identifier:
        API user or email address. Required.
 -pwd   string
        API key if using API user or password if using email address. Required.
--app   string
-       App name. Explorer results focus on that app as provider or consumer. Default is all apps.
 -in    string
-       CSV input file to be used to identify unmanaged workloads. (default "workload-identifier_default.csv")
+       CSV input file to be used to identify workloads. (default "workload-identifier_default.csv")
 -time  int
-       Timeout to lookup hostname in ms. (default 1000)
+       Timeout to lookup hostname in ms. 0 will skip hostname lookups. (default 1000)
+-app   string
+       App name to limit Explorer results to flows with that app as a provider or consumer. Default is all apps.
 -excl  string
        Label to exclude as a consumer role
 -x     Disable TLS checking.
--w     Exclude IP addresses already assigned to workloads to suggest or verify labels.
--n     Exclude information (ports and hostname lookups) for workloads and IP Addresses that do not match a service.
 -p     Exclude public IP addresses and limit suggested workloads to the RFC 1918 address space.
+-w     Exclude IP addresses already assigned to workloads to suggest or verify labels.
+-n     Exclude workloads (ports in use and hostnames) that do not match a service in the output.
 -g     Output CSVs for GAT import to create UMWLs and label existing workloads.
 -i     Output CSVs for ILO-CLI import to create UMWLs and label existing workloads.
 ```
@@ -51,4 +51,4 @@ The tool requires an input CSV with information on how to match IP addresses fro
 * **loc** - Illumio location label to be assigned.
 
 ## Hostname Resolution
-When an unmanaged workload is identified, the tool will attempt to resolve its hostname. The default allows for 5 second to resolve the hostname. It can be changed via the `-time` flag. If the hostname cannot be found, the output will use the name from the input file and the IP address. For example, `ldap - 10.0.80.3`
+When an unmanaged workload is identified, the tool will attempt to resolve its hostname. The default allows for 1 second to resolve the hostname. It can be changed via the `-time` flag. If the hostname cannot be found, the output will use the name from the input file and the IP address. For example, `ldap - 10.0.80.3`
