@@ -2,5 +2,4 @@
 misc/*
 *.csv
 *.xlsx
-!unmanaged-maker_default.csv
-bin/*
+!workload-identifier_default.csv
