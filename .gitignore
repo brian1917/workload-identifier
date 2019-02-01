@@ -1,5 +1,4 @@
 .DS*
 misc/*
 *.csv
-*.xlsx
 !workload-identifier_default.csv
