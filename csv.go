@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"io"
 	"log"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -24,6 +25,61 @@ type coreService struct {
 	env                string
 	loc                string
 	role               string
+}
+
+//struct to save subnet to location and environment labels
+type subnetLabel struct {
+	network  net.IPNet
+	locLabel string
+	envLabel string
+}
+
+// used to parse subnet to environment and location labels
+func locParser(filename string) []subnetLabel {
+	var netlabel []subnetLabel
+
+	// column in the CSV
+	networks := 0
+	loclabel := 1
+	envlabel := 2
+
+	tmpFile, _ := os.Open(filename)
+	reader := csv.NewReader(bufio.NewReader(tmpFile))
+
+	i := 0
+	for {
+
+		i++
+		tmp := subnetLabel{}
+		line, err := reader.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatalf("Error - Reading CSV File - %s", err)
+		}
+		//ignore CSV header
+		if i != 1 {
+
+			//make sure location label not empty
+			if line[loclabel] == "" {
+				log.Fatal("Error - Label field cannot be empty")
+			}
+
+			//Place subnet into net.IPNet data structure as part of subnetLabel struct
+			_, network, err := net.ParseCIDR(line[networks])
+			if err != nil {
+				log.Fatal("Error - The Subnet field cannot be parsed.  The format is 10.10.10.0/24")
+			}
+
+			//Set struct values
+			tmp.network = *network
+			tmp.envLabel = line[envlabel]
+			tmp.locLabel = line[loclabel]
+			netlabel = append(netlabel, tmp)
+		}
+
+	}
+	return netlabel
 }
 
 func csvParser(filename string) []coreService {
