@@ -87,6 +87,23 @@ func hostname(ipAddr string, t int) string {
 	return hostname
 }
 
+func (m *match) subnetRelabeler(n2l []subnetLabel) {
+
+	//cycle through all the subnets to see if workload IP is within a subnet...
+	for _, nets := range n2l {
+		if nets.network.Contains(net.ParseIP(m.ipAddress)) {
+
+			//If in the subnet then get loc and env labels associated with subnet unless empty string
+			if nets.locLabel != "" {
+				m.loc = nets.locLabel
+			}
+			if nets.envLabel != "" {
+				m.env = nets.envLabel
+			}
+		}
+	}
+}
+
 // Workload Labels
 func (m *match) existingLabels(workloads map[string]illumioapi.Workload, labels map[string]illumioapi.Label) {
 	for _, l := range workloads[m.ipAddress].Labels {
@@ -128,6 +145,7 @@ func main() {
 	gat := flag.Bool("g", false, "Output CSV for GAT import. -w and -v are ignored with -g.")
 	ilo := flag.Bool("i", false, "Output CSVs for ILO-CLI import to create UMWLs and label existing workloads.")
 	nonMatchExcl := flag.Bool("n", false, "Exclude information (ports and hostname lookups) for workloads and IP Addresses that do not match a service.")
+	snet := flag.String("snet", "", "Subnet to location CSV file name. Overides csvFile entries")
 
 	// Go's alphabetical ordering is annoying so writing out our own help menu (will eventually use a cli package)
 	flag.Usage = func() {
@@ -150,6 +168,8 @@ func main() {
 		fmt.Println("       App name to limit Explorer results to flows with that app as a provider or consumer. Default is all apps.")
 		fmt.Println("-excl  string")
 		fmt.Println("       Label to exclude as a consumer role")
+		fmt.Println("-snet  string")
+		fmt.Println("       CSV input file to identify location based on IP address. *Ignore if left out")
 		fmt.Println("-x     Disable TLS checking.")
 		fmt.Println("-p     Exclude public IP addresses and limit suggested workloads to the RFC 1918 address space.")
 		fmt.Println("-w     Exclude IP addresses already assigned to workloads to suggest or verify labels.")
@@ -192,6 +212,12 @@ func main() {
 
 	// Parse the CSV
 	coreServices := csvParser(*csvFile)
+
+	// Parse Subnet to Labels CSV
+	var subnetLabels []subnetLabel
+	if *snet != "" {
+		subnetLabels = locParser(*snet)
+	}
 
 	// Get all workloads and create workload map
 	allIPWLs := make(map[string]illumioapi.Workload)
@@ -300,6 +326,8 @@ func main() {
 				// Populate existing label information
 				nm.existingLabels(allIPWLs, allLabels)
 
+				//If snet set check for label based on Subnet
+				nm.subnetRelabeler(subnetLabels)
 				// Append to the final slice
 				nmFinal = append(nmFinal, nm)
 			}
