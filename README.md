@@ -1,5 +1,7 @@
 # Workload Identifier
 
+Binaries for Mac, Linux, and Windows are in the `bin` folder of this repository.
+
 ## Description
 CLI tool that analyzes traffic from explorer to do the following: 
 1. Identify and label potential unmanaged workloads.
@@ -13,12 +15,12 @@ Usage of workload-identifier:
        The fully qualified domain name of the PCE. Required.
 -port  int
        The port of the PCE. (default 8443)
--org   int
-       The org value for the PCE. (default 1)
 -user  string
        API user or email address. Required.
 -pwd   string
        API key if using API user or password if using email address. Required.
+-org   int
+       The org value for the PCE. Only needed if SaaS PCE while using API ID/Key.
 -in    string
        CSV input file to be used to identify workloads. (default "workload-identifier_default.csv")
 -time  int
@@ -27,10 +29,12 @@ Usage of workload-identifier:
        App name to limit Explorer results to flows with that app as a provider or consumer. Default is all apps.
 -excl  string
        Label to exclude as a consumer role
+-snet  string
+       CSV input file to identify location based on IP address. *Ignore if left out
 -x     Disable TLS checking.
 -p     Exclude public IP addresses and limit suggested workloads to the RFC 1918 address space.
 -w     Exclude IP addresses already assigned to workloads to suggest or verify labels.
--n     Exclude workloads (ports in use and hostnames) that do not match a service in the output.
+-n     Include workloads (ports in use and hostnames) that do not match a service in the output.
 -g     Output CSVs for GAT import to create UMWLs and label existing workloads.
 -i     Output CSVs for ILO-CLI import to create UMWLs and label existing workloads.
 ```
