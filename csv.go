@@ -3,12 +3,15 @@ package main
 import (
 	"bufio"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type coreService struct {
@@ -225,4 +228,102 @@ func csvParser(filename string) []coreService {
 
 	return coreServices
 
+}
+
+func csvWriter(matches []result, ilo, gat, exclWLs, nonMatchIncl bool) {
+
+	// Get time stamp for output files
+	timestamp := time.Now().Format("20060102_150405")
+
+	var defaultFile, gatUmwlFile, gatLabelFile, iloUmwlFile, iloLabelFile *os.File
+
+	// Always create the default file
+	defaultFile, err := os.Create("identified-workloads_" + timestamp + ".csv")
+	if err != nil {
+		log.Fatalf("ERROR - Creating file - %s\n", err)
+	}
+	defer defaultFile.Close()
+	fmt.Fprintf(defaultFile, "ip_address,name,status,current_role,current_app,current_env,current_loc,suggested_role,suggested_app,suggested_env,suggested_loc,reason\r\n")
+
+	// Export GAT format if requested
+	if gat {
+		gatUmwlFile, err = os.Create("gat-create-umwls_" + timestamp + ".csv")
+		if err != nil {
+			log.Fatalf("ERROR - Creating file - %s\n", err)
+		}
+		defer gatUmwlFile.Close()
+		gatLabelFile, err = os.Create("gat-update-labels_" + timestamp + ".csv")
+		if err != nil {
+			log.Fatalf("ERROR - Creating file - %s\n", err)
+		}
+		defer gatLabelFile.Close()
+	}
+
+	// Export ILO format if requested
+	if ilo {
+		iloUmwlFile, err = os.Create("ilo-create-umwls_" + timestamp + ".csv")
+		if err != nil {
+			log.Fatalf("ERROR - Creating file - %s\n", err)
+		}
+		defer iloUmwlFile.Close()
+		iloLabelFile, err = os.Create("ilo-update-labels_" + timestamp + ".csv")
+		if err != nil {
+			log.Fatalf("ERROR - Creating file - %s\n", err)
+		}
+		defer iloLabelFile.Close()
+		fmt.Fprintf(iloUmwlFile, "hostname,ips,os_type\r\n")
+		fmt.Fprintf(iloLabelFile, "role,app,env,loc,ips\r\n")
+	}
+
+	// Set an initial reference for GAT import to increment
+	ref := 0
+
+	// Iterate through final matches
+	sort.Slice(matches, func(i, j int) bool { return matches[i].matchStatus < matches[j].matchStatus })
+	for _, m := range matches {
+
+		// Check if it's a workload or IP address based off the host name
+		var status string
+		switch {
+		case m.matchStatus == 0:
+			status = "Existing workload matched to verify/assign labels."
+
+		case m.matchStatus == 1:
+			status = "IP address matched to create/label UMWL"
+
+		case m.matchStatus == 2:
+			status = "Existing Workload with no match."
+		}
+
+		// Write to the default CSV if UMWL, Matched excisting workload and exclude flag not set, non-matched existing workload and include flag not set.
+		if m.matchStatus == 1 || (m.matchStatus == 0 && !exclWLs) || (m.matchStatus == 2 && nonMatchIncl) {
+			fmt.Fprintf(defaultFile, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", m.ipAddress, m.hostname, status, m.eRole, m.eApp, m.eEnv, m.eLoc, m.role, m.app, m.env, m.loc, m.reason)
+		}
+
+		// Write GAT CSV if requested
+		if gat {
+			// Write UMWLs
+			if m.matchStatus == 1 {
+				ref++
+				fmt.Fprintf(gatUmwlFile, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\r\n", m.hostname, "", m.role, m.app, m.env, m.loc, m.hostname, "", "", "", m.ipAddress, "eth0:"+m.ipAddress, "gat-import", "ref-"+strconv.Itoa(ref))
+			}
+			// Write existing workloads labels if flag isn't set
+			if m.matchStatus == 0 && !exclWLs {
+				fmt.Fprintf(gatLabelFile, "%s,%s,%s,%s,%s,%s\r\n", m.hostname, m.role, m.app, m.env, m.loc, m.wlHref)
+			}
+		}
+
+		// Write ILO CSV if requested
+		if ilo {
+			// Write the UMWLs
+			if m.matchStatus == 1 {
+				fmt.Fprintf(iloUmwlFile, "%s,%s,%s\r\n", m.hostname, m.ipAddress, "")
+				fmt.Fprintf(iloLabelFile, "%s,%s,%s,%s,%s\r\n", m.role, m.app, m.env, m.loc, m.ipAddress)
+			}
+			// Write the update labels
+			if !exclWLs && m.matchStatus == 0 {
+				fmt.Fprintf(iloLabelFile, "%s,%s,%s,%s,%s\r\n", m.role, m.app, m.env, m.loc, m.ipAddress)
+			}
+		}
+	}
 }

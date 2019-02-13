@@ -7,9 +7,19 @@ import (
 	"github.com/brian1917/illumioapi"
 )
 
-func findProcesses(traffic []illumioapi.TrafficAnalysis, coreServices []coreService) []match {
+// ContainsStr hecks if an integer is in a slice
+func containsStr(strSlice []string, searchStr string) bool {
+	for _, value := range strSlice {
+		if value == searchStr {
+			return true
+		}
+	}
+	return false
+}
+
+func findProcesses(traffic []illumioapi.TrafficAnalysis, coreServices []coreService) []result {
 	// Create a slice to hold the matches
-	var matches []match
+	var matches []result
 
 	// Drop all traffic coming from a workload - that means the consumer is known
 	var unkConsTraffic []illumioapi.TrafficAnalysis
@@ -49,7 +59,7 @@ func findProcesses(traffic []illumioapi.TrafficAnalysis, coreServices []coreServ
 			if cs.numProcessesReq <= processMatches && cs.numProcessesReq > 0 {
 				if !cs.provider {
 					reason := fmt.Sprintf("Identified by following processes: %s", strings.Join(matchedProcesses, ";"))
-					matches = append(matches, match{csname: cs.name, ipAddress: ipAddr, app: cs.app, env: cs.env, loc: cs.loc, role: cs.role, reason: reason})
+					matches = append(matches, result{csname: cs.name, ipAddress: ipAddr, app: cs.app, env: cs.env, loc: cs.loc, role: cs.role, reason: reason})
 				}
 			}
 		}

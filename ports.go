@@ -8,10 +8,20 @@ import (
 	"github.com/brian1917/illumioapi"
 )
 
-func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService, provider bool) ([]match, []match) {
+// Contains checks if an integer is in a slice
+func containsInt(intSlice []int, searchInt int) bool {
+	for _, value := range intSlice {
+		if value == searchInt {
+			return true
+		}
+	}
+	return false
+}
+
+func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService, provider bool) ([]result, []result) {
 	// Create a slice to hold the matches and non-matches
-	var matches []match
-	var nonmatches []match
+	var matches []result
+	var nonmatches []result
 
 	var ft []illumioapi.TrafficAnalysis
 
@@ -104,7 +114,7 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 					}
 					reason := fmt.Sprintf("%s is the %s on traffic over %s %s. Required and optional non-ranges flow count is %d. ", ipAddr, t, s, strings.Join(portMatches, " "), flowCounter)
 
-					matches = append(matches, match{csname: cs.name, ipAddress: ipAddr, app: cs.app, env: cs.env, loc: cs.loc, role: cs.role, reason: reason})
+					matches = append(matches, result{csname: cs.name, ipAddress: ipAddr, app: cs.app, env: cs.env, loc: cs.loc, role: cs.role, reason: reason})
 				} else if provider {
 					// Convert slice of int to slice of string
 					var portStr []string
@@ -116,7 +126,7 @@ func findPorts(traffic []illumioapi.TrafficAnalysis, coreServices []coreService,
 						}
 					}
 					reason := fmt.Sprintf("Traffic observed on ports %s", strings.Join(portStr, ";"))
-					nonmatches = append(nonmatches, match{ipAddress: ipAddr, reason: reason})
+					nonmatches = append(nonmatches, result{ipAddress: ipAddr, reason: reason, matchStatus: 2})
 				}
 			}
 		}
