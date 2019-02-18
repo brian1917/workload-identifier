@@ -37,8 +37,8 @@ Usage of workload-identifier:
 -i     Output CSVs for ILO-CLI import to create UMWLs and label existing workloads.
 ```
 
-## Input CSV File
-The tool requires an input CSV with information on how to match IP addresses from observed traffic to unmanaged workloads. The repository includes a default CSV (`workload-identifier-default.csv`) that is suggested to be used as a starting point. Add to it as needed.
+## Required Input CSV File
+The tool requires an input CSV (`-in`) with information on how to match IP addresses from observed traffic to unmanaged workloads. The repository includes a default CSV (`workload-identifier-default.csv`) that is suggested to be used as a starting point. Add to it as needed.
 * **name** - name of the service being identified (e.g., domain controller, LDAP, etc.)
 * **provider** - 1 if the workload to be identified will be on the provider side of traffic and 0 if it will be consumer. For example, a Domain Controllers will be the provider of observed traffic. McAfee will be the consumer on traffic over port 8081.
 * **required_ports** - list of ports that _must_ be observed to be considered a match. Separate ports by a space. *_Ranges are not allowed_*.
@@ -52,8 +52,8 @@ The tool requires an input CSV with information on how to match IP addresses fro
 * **env** - Illumio environment label be assigned.
 * **loc** - Illumio location label to be assigned.
 
-## Optional Input CSV for Location and Environment Identification based on Subnet
-You can use the `-snet` parameter to specific a CSV file with the following columns:
+## Optional Input CSV for Location and Environment Identification Based on Subnet
+You can use the optional `-snet` parameter to specific a CSV file with the following columns:
 * Network (CIDR notation)
 * Location Label
 * Environment Label
