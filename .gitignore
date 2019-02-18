@@ -1,5 +1,5 @@
 .DS*
 misc/*
 *.csv
-!workload-identifier_default.csv
+!workload-identifier-default.csv
 !sample_output/*
