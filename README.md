@@ -19,10 +19,8 @@ Usage of workload-identifier:
        API user or email address. Required.
 -pwd   string
        API key if using API user or password if using email address. Required.
--org   int
-       The org value for the PCE. Only needed if SaaS PCE while using API ID/Key.
 -in    string
-       CSV input file to be used to identify workloads. (default "workload-identifier_default.csv")
+       CSV input file to be used to identify workloads. (default "workload-identifier-default.csv")
 -time  int
        Timeout to lookup hostname in ms. 0 will skip hostname lookups. (default 1000)
 -app   string
@@ -30,7 +28,7 @@ Usage of workload-identifier:
 -excl  string
        Label to exclude as a consumer role
 -snet  string
-       CSV input file to identify location based on IP address. *Ignore if left out
+       Optional CSV input file to identify location based on IP address.
 -x     Disable TLS checking.
 -p     Exclude public IP addresses and limit suggested workloads to the RFC 1918 address space.
 -w     Exclude IP addresses already assigned to workloads to suggest or verify labels.
@@ -40,11 +38,11 @@ Usage of workload-identifier:
 ```
 
 ## Input CSV File
-The tool requires an input CSV with information on how to match IP addresses from observed traffic to unmanaged workloads. The repository includes a default CSV that is suggested to be used as a starting point. Add to it as needed.
+The tool requires an input CSV with information on how to match IP addresses from observed traffic to unmanaged workloads. The repository includes a default CSV (`workload-identifier-default.csv`) that is suggested to be used as a starting point. Add to it as needed.
 * **name** - name of the service being identified (e.g., domain controller, LDAP, etc.)
-* **provider** - 1 if the workload is a provider or 0 if it is a consumer. For example, a Domain Controllers will be the provider of observed traffic. McAfee workloads will be the consumer on traffic over port 8081.
+* **provider** - 1 if the workload to be identified will be on the provider side of traffic and 0 if it will be consumer. For example, a Domain Controllers will be the provider of observed traffic. McAfee will be the consumer on traffic over port 8081.
 * **required_ports** - list of ports that _must_ be observed to be considered a match. Separate ports by a space. *_Ranges are not allowed_*.
-* **optional_ports** - list of ports that some must be observed to be considered a match. Separate ports by a space. Ranges are allowed and should be written as 49152-65535 with no spaces. *_A match in a range only counts once_*. For example, if a range is given as 100-200 and traffic is observed on 101 and 102, it counted as 1 optional match. This avoids situations like a server matching as a domain controller because several high end ports were identified.
+* **optional_ports** - list of ports that some must be observed to be considered a match. Separate ports by a space. Ranges are allowed and should be written as 49152-65535 with no spaces. *_A match in a range only counts once_*. For example, if a range is given as 100-200 and traffic is observed on 101 and 102, it is counted as 1 optional match. This avoids situations like a server matching as a domain controller because several high end ports were identified.
 * **num_optional_ports** - number of optional ports that must be matched.
 * **num_flows** - number of flows that must be observed on required ports and optional ports. Flows observed in port ranges do not count toward this requirement.
 * **processes** - list of optional provider processes (e.g., macmnsvc.exe) used to identify the workload.
@@ -54,5 +52,12 @@ The tool requires an input CSV with information on how to match IP addresses fro
 * **env** - Illumio environment label be assigned.
 * **loc** - Illumio location label to be assigned.
 
-## Hostname Resolution
-When an unmanaged workload is identified, the tool will attempt to resolve its hostname. The default allows for 1 second to resolve the hostname. It can be changed via the `-time` flag. If the hostname cannot be found, the output will use the name from the input file and the IP address. For example, `ldap - 10.0.80.3`
+## Optional Input CSV for Location and Environment Identification based on Subnet
+You can use the `-snet` parameter to specific a CSV file with the following columns:
+* Network (CIDR notation)
+* Location Label
+* Environment Label
+If used, Environment and Location labels are pulled from here based on IP address being in the subnet.
+
+## Name Resolution
+When an unmanaged workload is identified, the tool will attempt to resolve its hostname. The default allows for 1000 ms to resolve the hostname. It can be changed via the `-time` flag. If the hostname cannot be found, the output will use the name from the input file and the IP address. For example, `ldap - 10.0.80.3`

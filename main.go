@@ -109,11 +109,10 @@ func main() {
 
 	fqdn := flag.String("fqdn", "", "The fully qualified domain name of the PCE.")
 	port := flag.Int("port", 8443, "The port for the PCE.")
-	org := flag.Int("org", 1, "The org value for the PCE.")
 	user := flag.String("user", "", "API user or email address.")
 	pwd := flag.String("pwd", "", "API key if using API user or password if using email address.")
 	app := flag.String("app", "", "App name. Explorer results focus on that app as provider or consumer. Default is all apps")
-	csvFile := flag.String("in", "workload-identifier_default.csv", "CSV input file to be used to identify unmanaged workloads.")
+	csvFile := flag.String("in", "workload-identifier-default.csv", "CSV input file to be used to identify unmanaged workloads.")
 	lookupTO := flag.Int("time", 1000, "Timeout to lookup hostname in ms.")
 	consExcl := flag.String("excl", "", "Label to exclude as a consumer.")
 	disableTLS := flag.Bool("x", false, "Disable TLS checking.")
@@ -134,10 +133,8 @@ func main() {
 		fmt.Println("       API user or email address. Required.")
 		fmt.Println("-pwd   string")
 		fmt.Println("       API key if using API user or password if using email address. Required.")
-		fmt.Println("-org   int")
-		fmt.Println("       The org value for the PCE. Only needed if SaaS PCE while using API ID/Key.")
 		fmt.Println("-in    string")
-		fmt.Println("       CSV input file to be used to identify workloads. (default \"workload-identifier_default.csv\")")
+		fmt.Println("       CSV input file to be used to identify workloads. (default \"workload-identifier-default.csv\")")
 		fmt.Println("-time  int")
 		fmt.Println("       Timeout to lookup hostname in ms. 0 will skip hostname lookups. (default 1000)")
 		fmt.Println("-app   string")
@@ -145,7 +142,7 @@ func main() {
 		fmt.Println("-excl  string")
 		fmt.Println("       Label to exclude as a consumer role")
 		fmt.Println("-snet  string")
-		fmt.Println("       CSV input file to identify location based on IP address. *Ignore if left out")
+		fmt.Println("       Optional CSV input file to identify location based on IP address.")
 		fmt.Println("-x     Disable TLS checking.")
 		fmt.Println("-p     Exclude public IP addresses and limit suggested workloads to the RFC 1918 address space.")
 		fmt.Println("-w     Exclude IP addresses already assigned to workloads to suggest or verify labels.")
@@ -162,27 +159,36 @@ func main() {
 		log.Fatalf("ERROR - Required arguments not included. Run -h for usgae.")
 	}
 
-	// If user is provided, we need to authenticate to the PCE
 	userStr := *user
-	if userStr[:4] != "api_" {
-		auth, _, err := illumioapi.Authenticate(illumioapi.PCE{FQDN: *fqdn, Port: *port, Org: *org, DisableTLSChecking: *disableTLS}, *user, *pwd)
+	var org int
+
+	// If the user string begins with "api_", we need to get the Org using the login api
+	if userStr[:4] == "api_" {
+		login, _, err := illumioapi.Login(illumioapi.PCE{FQDN: *fqdn, User: *user, Key: *pwd, Port: *port}, "")
+		if err != nil {
+			log.Fatalf("Error - Logging in to PCE to get org ID - %s", err)
+		}
+		org = login.Orgs[0].ID
+		// If it doesn't start with "api_", we need to authenticate and then login
+	} else {
+		auth, _, err := illumioapi.Authenticate(illumioapi.PCE{FQDN: *fqdn, Port: *port, DisableTLSChecking: *disableTLS}, *user, *pwd)
 		if err != nil {
 			log.Fatalf("Error - Authenticating to PCE - %s", err)
 		}
-		login, _, err := illumioapi.Login(illumioapi.PCE{FQDN: *fqdn, Port: *port, Org: *org, DisableTLSChecking: *disableTLS}, auth.AuthToken)
+		login, _, err := illumioapi.Login(illumioapi.PCE{FQDN: *fqdn, Port: *port, DisableTLSChecking: *disableTLS}, auth.AuthToken)
 		if err != nil {
 			log.Fatalf("Error - Logging in to PCE - %s", err)
 		}
 		user = &login.AuthUsername
 		pwd = &login.SessionToken
-		org = &login.Orgs[0].ID
+		org = login.Orgs[0].ID
 	}
 
 	// Create the PCE
 	pce := illumioapi.PCE{
 		FQDN:               *fqdn,
 		Port:               *port,
-		Org:                *org,
+		Org:                org,
 		User:               *user,
 		Key:                *pwd,
 		DisableTLSChecking: *disableTLS}
@@ -289,15 +295,16 @@ func main() {
 	// Create a map to keep track of when we write a match.
 	ipAddr := make(map[string]int)
 
-	// For each input core service, process its matches to preserve input service order.
+	// For each coreservice, cycle through the results.
 	i := 0
 	for _, cs := range coreServices {
 		i++
-		// Iterate each match for each core services.
 		for _, r := range results {
-			// Only process those that have not been matched
+			// Only process results that haven't been matched
 			if _, ok := ipAddr[r.ipAddress]; !ok {
-				// Process entries if it matches a core service OR is an existing workload with no matches and done processing all core services
+				// If the result isn't mathched yet, we will process it if:
+				// 1) It's matched on the current core-service OR
+				// 2) It's a non-match, existing workload, and we are done cyclying through core services (last entry)
 				if r.csname == cs.name || (r.matchStatus == 2 && allIPWLs[r.ipAddress].Href != "" && i == len(coreServices)) {
 					// Set hostnames and HREF for existing workloads
 					r.hostname = allIPWLs[r.ipAddress].Name
@@ -316,11 +323,11 @@ func main() {
 					}
 					// Populate existing label information
 					r.existingLabels(allIPWLs, allLabels)
-					//If snet set check for label based on Subnet
+					//If snet is set, check for label based on Subnet
 					if *snet != "" {
 						r.subnetRelabeler(subnetLabels)
 					}
-					// Append results to a new array, if RFC 1918 and that's all we want OR we don't care about RFC 1918.
+					// Append results to a new array if RFC 1918 and that's all we want OR we don't care about RFC 1918.
 					if rfc1918(r.ipAddress) && *privOnly || !*privOnly {
 						finalMatches = append(finalMatches, r)
 						ipAddr[r.ipAddress] = 1
@@ -330,7 +337,7 @@ func main() {
 		}
 	}
 
-	// If we have data, send to writing CSV
+	// If we have results, send to writing CSV
 	if len(results) > 0 {
 		csvWriter(finalMatches, *ilo, *gat, *exclWLs, *nonMatchIncl)
 	}
