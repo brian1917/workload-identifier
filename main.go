@@ -229,7 +229,7 @@ func main() {
 	// Get the label if we are going to do a consumer exclude
 	var exclLabel illumioapi.Label
 	if len(*consExcl) > 0 {
-		exclLabel, _, err := illumioapi.GetLabel(pce, "role", *consExcl)
+		exclLabel, _, err := illumioapi.GetLabelbyKeyValue(pce, "role", *consExcl)
 		if err != nil {
 			log.Fatalf("ERROR - Getting label HREF - %s", err)
 		}
@@ -248,7 +248,7 @@ func main() {
 
 	// If an app is provided, adjust query to include it
 	if *app != "" {
-		label, _, err := illumioapi.GetLabel(pce, "app", *app)
+		label, _, err := illumioapi.GetLabelbyKeyValue(pce, "app", *app)
 		if err != nil {
 			log.Fatalf("ERROR - Getting label HREF - %s", err)
 		}
@@ -259,7 +259,7 @@ func main() {
 	}
 
 	// Run traffic query
-	traffic, err := illumioapi.GetTrafficAnalysis(pce, tq)
+	traffic, _, err := illumioapi.GetTrafficAnalysis(pce, tq)
 	if err != nil {
 		log.Fatalf("ERROR - Making explorer API call - %s", err)
 	}
@@ -269,7 +269,7 @@ func main() {
 		tq.DestinationsInclude = tq.SourcesInclude
 		tq.SourcesInclude = []string{}
 
-		traffic2, err := illumioapi.GetTrafficAnalysis(pce, tq)
+		traffic2, _, err := illumioapi.GetTrafficAnalysis(pce, tq)
 		if err != nil {
 			log.Fatalf("ERROR - Making second explorer API call - %s", err)
 		}
