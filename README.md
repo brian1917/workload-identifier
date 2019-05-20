@@ -32,9 +32,9 @@ Usage of workload-identifier:
 -x     Disable TLS checking.
 -p     Exclude public IP addresses and limit suggested workloads to the RFC 1918 address space.
 -w     Exclude IP addresses already assigned to workloads to suggest or verify labels.
--n     Include workloads (ports in use and hostnames) that do not match a service in the output.
--g     Output CSVs for GAT import to create UMWLs and label existing workloads.
--i     Output CSVs for ILO-CLI import to create UMWLs and label existing workloads.
+-n     Include workloads (ports with traffic use and hostnames) that do not match a service in the output.
+-g     Output CSVs for GAT import to create UMWLs and label existing workloads in addition to default output.
+-i     Output CSVs for ILO-CLI import to create UMWLs and label existing workloads in addition to default output.
 ```
 
 ## Required Input CSV File
